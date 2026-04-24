@@ -1,0 +1,2241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Corner Clinic — Encounter Analysis | Monday Meeting</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+/* ===== CORNER CLINIC BRAND COLORS =====
+   Primary teal : #0e6b62  (dark)  / #1a8a80 (medium) / #22a99d (light)
+   Orange accent: #f5a623
+   ===================================== */
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f7f6; color: #2d3748; }
+
+.header {
+  background: linear-gradient(135deg, #0a4f48 0%, #0e6b62 100%);
+  color: white; padding: 22px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.header .h1 { font-size: 1.5rem; font-weight: 700; }
+.header .sub { font-size: .85rem; opacity: .75; margin-top: 3px; }
+.header .badge { background: rgba(245,166,35,.22); border: 1px solid rgba(245,166,35,.4); border-radius: 20px; padding: 6px 16px; font-size: .82rem; font-weight: 600; white-space: nowrap; color: #ffe5a0; }
+
+.kpis { display: flex; gap: 14px; padding: 20px 24px 0; flex-wrap: wrap; }
+.kpi { background: white; border-radius: 10px; padding: 14px 18px; flex: 1; min-width: 140px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); border-top: 3px solid #1a8a80; }
+.kpi.green { border-top-color: #38a169; }
+.kpi.teal  { border-top-color: #0e6b62; }
+.kpi.purple{ border-top-color: #805ad5; }
+.kpi.orange{ border-top-color: #f5a623; }
+.kpi-val   { font-size: 1.8rem; font-weight: 800; color: #1a202c; line-height: 1; }
+.kpi-val.up{ color: #276749; }
+.kpi-label { font-size: .72rem; color: #718096; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+.kpi-sub   { font-size: .78rem; color: #4a5568; margin-top: 3px; }
+
+.tabs { display: flex; gap: 4px; padding: 20px 24px 0; flex-wrap: wrap; }
+.tab { padding: 8px 16px; font-size: .84rem; font-weight: 600; cursor: pointer;
+  border-radius: 8px 8px 0 0; color: #718096; border: 2px solid transparent; border-bottom: none;
+  background: transparent; transition: all .15s; }
+.tab.active { background: white; color: #0e6b62; border-color: #e2e8f0; border-bottom-color: white; margin-bottom: -2px; }
+.tab:hover:not(.active) { background: #e6f4f2; color: #0e6b62; }
+
+.panel { display: none; padding: 24px; }
+.panel.active { display: block; }
+
+.row { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 18px; }
+.card { background: white; border-radius: 10px; padding: 20px; flex: 1; min-width: 280px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.card.full { flex: 999; min-width: 400px; }
+.card h3 { font-size: .88rem; font-weight: 700; color: #2d3748; margin-bottom: 3px; }
+.card .sub { font-size: .75rem; color: #a0aec0; margin-bottom: 14px; }
+canvas { max-height: 300px; }
+
+.ptable { width: 100%; border-collapse: collapse; font-size: .83rem; }
+.ptable th { background: #e6f4f2; padding: 8px 12px; text-align: left; font-size: .75rem; font-weight: 700; color: #0e6b62; text-transform: uppercase; }
+.ptable td { padding: 8px 12px; border-bottom: 1px solid #f0f7f6; vertical-align: middle; }
+.ptable tr:hover td { background: #f7fafc; }
+.tag  { padding: 2px 8px; border-radius: 10px; font-size: .73rem; font-weight: 700; display: inline-block; }
+.tag-new  { background: #e6f4f2; color: #0e6b62; }
+.tag-up   { background: #f0fff4; color: #276749; }
+.tag-gone { background: #f7fafc; color: #a0aec0; }
+
+.bar-spark { height: 6px; border-radius: 3px; background: #e2e8f0; overflow: hidden; margin-top: 3px; }
+.bar-fill  { height: 100%; border-radius: 3px; background: #1a8a80; }
+
+.src-chip { display:inline-flex; align-items:center; gap:4px; font-size:.70rem; color:#4a5568;
+  background:#e6f4f2; border:1px solid #b2ddd9; border-radius:20px; padding:2px 9px 2px 7px;
+  text-decoration:none; margin-top:8px; transition:background .15s; }
+.src-chip:hover { background:#b2ddd9; color:#0e6b62; border-color:#1a8a80; }
+.src-chip svg { flex-shrink:0; }
+
+.src-panel-card { background:white; border-radius:10px; padding:18px 20px; margin-bottom:14px;
+  box-shadow:0 1px 4px rgba(0,0,0,.08); display:flex; gap:18px; align-items:flex-start; }
+.src-icon { width:44px; height:44px; border-radius:8px; display:flex; align-items:center;
+  justify-content:center; font-size:1.3rem; flex-shrink:0; }
+.src-icon.xlsx { background:#e6f4ea; }
+.src-icon.pdf  { background:#fff1f2; }
+.src-meta { flex:1; }
+.src-meta h4 { font-size:.92rem; font-weight:700; color:#1a202c; margin-bottom:3px; }
+.src-meta p { font-size:.80rem; color:#4a5568; line-height:1.5; margin-bottom:6px; }
+.src-tags { display:flex; gap:6px; flex-wrap:wrap; }
+.src-tag  { font-size:.70rem; font-weight:600; padding:2px 8px; border-radius:10px;
+  background:#e6f4f2; color:#0e6b62; border:1px solid #b2ddd9; }
+
+.insight-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 14px; }
+.insight { background: white; border-radius: 8px; padding: 14px 16px; border-left: 4px solid #1a8a80;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06); font-size: .83rem; line-height: 1.55; }
+.insight.ok   { border-left-color: #38a169; }
+.insight.warn { border-left-color: #e67e22; }
+.insight.info { border-left-color: #805ad5; }
+.insight strong { display: block; font-size: .86rem; margin-bottom: 4px; color: #1a202c; }
+
+.annotation { position: absolute; }
+
+/* ===== PREMIUM ANIMATIONS ===== */
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: #f0f4f8; }
+::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 4px; transition: background .2s; }
+::-webkit-scrollbar-thumb:hover { background: #2b6cb0; }
+
+/* Animated header gradient */
+.header {
+  background: linear-gradient(135deg, #07403b 0%, #0e6b62 45%, #1a8a80 75%, #07403b 100%);
+  background-size: 300% 300%;
+  animation: headerGrad 10s ease infinite;
+}
+@keyframes headerGrad {
+  0%   { background-position: 0% 50% }
+  50%  { background-position: 100% 50% }
+  100% { background-position: 0% 50% }
+}
+
+/* Loading splash */
+#splash {
+  position: fixed; inset: 0; z-index: 99999;
+  background: linear-gradient(135deg, #07403b 0%, #0e6b62 100%);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity .65s ease;
+}
+#splash.fade-out { opacity: 0; pointer-events: none; }
+.splash-inner { text-align: center; color: white; animation: splashIn .5s ease; }
+@keyframes splashIn { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
+.splash-logo  { font-size: 2.1rem; font-weight: 800; letter-spacing: -.5px; }
+.splash-sep   { font-size: .8rem; opacity: .55; margin: 8px 0 24px; letter-spacing: 2px; text-transform: uppercase; }
+.splash-bar   { width: 220px; height: 3px; background: rgba(255,255,255,.2); border-radius: 3px; margin: 0 auto; overflow: hidden; }
+.splash-fill  { height: 100%; background: white; border-radius: 3px; animation: splashLoad 1.3s cubic-bezier(.4,0,.2,1) forwards; }
+@keyframes splashLoad { 0%{width:0%} 30%{width:40%} 70%{width:75%} 100%{width:100%} }
+
+/* Panel fade-in */
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.panel.active { animation: panelIn .38s cubic-bezier(.25,.8,.25,1); }
+
+/* Card hover lift */
+.card {
+  transition: box-shadow .22s ease, transform .22s ease;
+}
+.card:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,.11);
+  transform: translateY(-2px);
+}
+
+/* KPI tile hover */
+.kpi {
+  transition: box-shadow .22s ease, transform .22s ease;
+  cursor: default;
+  position: relative;
+}
+.kpi:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,.10);
+  transform: translateY(-2px);
+}
+.kpi-btn { cursor: pointer; }
+.kpi-btn:hover { box-shadow: 0 8px 28px rgba(0,0,0,.14); transform: translateY(-3px); }
+.kpi-btn:active { transform: translateY(-1px) scale(.98); }
+.kpi-hint {
+  font-size: .68rem; color: #a0aec0; margin-top: 6px;
+  opacity: 0; transform: translateY(4px);
+  transition: opacity .2s ease, transform .2s ease;
+  font-weight: 600; letter-spacing: .3px;
+}
+.kpi-btn:hover .kpi-hint { opacity: 1; transform: translateY(0); }
+
+/* Insight card hover */
+.insight {
+  transition: transform .2s ease, box-shadow .2s ease, border-left-color .2s ease;
+}
+.insight:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.10);
+}
+
+/* Tab transitions — enhanced active indicator */
+.tab {
+  transition: all .2s ease;
+  position: relative;
+}
+.tab.active::after {
+  content: '';
+  position: absolute; bottom: -2px; left: 0; right: 0; height: 2px;
+  background: #f5a623;
+  animation: tabUnderline .25s ease;
+}
+@keyframes tabUnderline {
+  from { transform: scaleX(0); opacity: 0; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+/* Table row sweep hover */
+.ptable tbody tr {
+  transition: background .18s ease;
+}
+.ptable tbody tr:hover td {
+  background: linear-gradient(90deg, #e6f4f2 0%, #f7fafc 100%) !important;
+}
+
+/* Staggered card entry */
+.card-anim {
+  animation: cardIn .4s ease both;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal entrance */
+#provDrillModal > div,
+#kpiModalBox {
+  animation: modalIn .28s cubic-bezier(.34,1.4,.64,1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.88) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Source chip shine on first hover */
+.src-chip {
+  position: relative; overflow: hidden;
+}
+.src-chip::after {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent);
+  transition: left .4s ease;
+}
+.src-chip:hover::after { left: 150%; }
+
+/* KPI counter shimmer on load */
+@keyframes kpiPop {
+  0%   { transform: scale(.85); opacity: 0; }
+  70%  { transform: scale(1.06); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.kpi-val { animation: kpiPop .55s cubic-bezier(.34,1.56,.64,1) both; }
+
+/* Smooth panel transition wrapper */
+#panel-wrapper { position: relative; }
+
+/* ===== MOBILE & TABLET RESPONSIVE ===== */
+
+/* Wrap tables so they scroll horizontally on small screens */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Tablet (481px – 768px) ── */
+@media (max-width: 768px) {
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 14px 16px 0;
+  }
+  .kpi { min-width: unset; }
+
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 14px 16px 0;
+    gap: 3px;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; padding: 8px 12px; font-size: .80rem; }
+
+  .card { min-width: calc(50% - 9px); }
+  .card.full { min-width: 100%; }
+
+  .insight-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Phone (≤ 480px) ── */
+@media (max-width: 480px) {
+  /* Header */
+  .header {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .header .h1 { font-size: 1.15rem; }
+  .header .sub { font-size: .78rem; }
+  .header .badge { font-size: .75rem; padding: 5px 12px; }
+
+  /* KPI tiles — 2×3 grid */
+  .kpis {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 12px 12px 0;
+  }
+  .kpi { min-width: unset; padding: 12px 14px; }
+  .kpi-val { font-size: 1.5rem; }
+  .kpi-label { font-size: .67rem; }
+  .kpi-sub { font-size: .72rem; }
+  .kpi-hint { display: none; }
+
+  /* Tabs — horizontal scroll strip */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 12px 12px 0;
+    gap: 3px;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    white-space: nowrap;
+    padding: 7px 11px;
+    font-size: .76rem;
+    border-radius: 6px 6px 0 0;
+  }
+
+  /* Panels & cards */
+  .panel { padding: 12px; }
+  .row { gap: 10px; }
+  .card {
+    min-width: 100% !important;
+    padding: 14px;
+  }
+  .card.full { min-width: 100% !important; }
+  .card h3 { font-size: .84rem; }
+  .card .sub { font-size: .72rem; }
+
+  /* Charts — shorter on phone */
+  canvas { max-height: 200px !important; }
+
+  /* Insights — single column */
+  .insight-grid { grid-template-columns: 1fr; }
+  .insight { font-size: .80rem; }
+
+  /* Tables */
+  .ptable { font-size: .75rem; }
+  .ptable th, .ptable td { padding: 6px 8px; }
+
+  /* Source cards in Data Sources tab */
+  .src-panel-card { flex-direction: column; gap: 10px; }
+  .src-icon { width: 36px; height: 36px; font-size: 1.1rem; }
+
+  /* KPI modal — slides up from bottom */
+  #kpiModal { align-items: flex-end; padding: 0; }
+  #kpiModalBox {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 88vh;
+    padding: 22px 18px 28px;
+    margin: 0;
+  }
+
+  /* Provider drill modal — slides up from bottom */
+  #provDrillModal { align-items: flex-end; padding: 0; }
+  #provDrillModal > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 22px 18px 28px;
+  }
+
+  /* Alert banners */
+  [style*="border-left:4px"] { font-size: .78rem; padding: 10px 12px; }
+
+  /* Source chip wrap */
+  .src-chip { font-size: .67rem; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div id="passwordGate" style="position:fixed;inset:0;z-index:999999;background:linear-gradient(150deg,#07403b 0%,#0e6b62 60%,#1a8a80 100%);display:flex;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:18px;padding:44px 48px 38px;width:400px;max-width:92vw;box-shadow:0 24px 70px rgba(0,0,0,0.38);text-align:center;">
+
+    <!-- Corner Clinic logo recreation -->
+    <div style="display:inline-flex;align-items:center;gap:10px;border:2.5px solid #0e6b62;border-radius:4px;padding:10px 16px 10px 12px;margin-bottom:20px;">
+      <!-- Orange + cross -->
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="0" width="8" height="28" rx="2" fill="#f5a623"/>
+        <rect x="0" y="10" width="28" height="8" rx="2" fill="#f5a623"/>
+      </svg>
+      <div style="text-align:left;line-height:1.15;">
+        <div style="font-size:1.05rem;font-weight:800;color:#0e6b62;letter-spacing:1.5px;text-transform:uppercase;">CORNER</div>
+        <div style="font-size:1.05rem;font-weight:800;color:#0e6b62;letter-spacing:1.5px;text-transform:uppercase;">CLINIC</div>
+      </div>
+    </div>
+
+    <div style="font-size:.78rem;color:#718096;margin-bottom:26px;letter-spacing:.6px;text-transform:uppercase;">E&amp;M Encounter Dashboard · Monday Meeting</div>
+    <div style="font-size:.82rem;color:#4a5568;margin-bottom:10px;text-align:left;font-weight:600;">Enter passcode to continue</div>
+    <input id="pwInput" type="password" placeholder="Passcode"
+      style="width:100%;padding:11px 14px;border:2px solid #e2e8f0;border-radius:8px;font-size:1rem;outline:none;transition:border-color .2s;margin-bottom:10px;"
+      onkeydown="if(event.key==='Enter')checkPassword()"
+      onfocus="this.style.borderColor='#0e6b62'"
+      onblur="this.style.borderColor='#e2e8f0'"/>
+    <div id="pwError" style="color:#e53e3e;font-size:.78rem;min-height:18px;margin-bottom:8px;text-align:left;"></div>
+    <button onclick="checkPassword()"
+      style="width:100%;padding:12px;background:linear-gradient(135deg,#07403b,#0e6b62);color:white;border:none;border-radius:8px;font-size:.95rem;font-weight:700;cursor:pointer;transition:opacity .2s;letter-spacing:.3px;"
+      onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      Access Dashboard →
+    </button>
+    <div style="font-size:.72rem;color:#a0aec0;margin-top:18px;">Contact Ryan Anderson for access</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const PASSCODE = 'Corner2026';
+  if (sessionStorage.getItem('cc_auth') === '1') {
+    document.getElementById('passwordGate').style.display = 'none';
+  }
+  window.checkPassword = function() {
+    const val = document.getElementById('pwInput').value;
+    if (val === PASSCODE) {
+      sessionStorage.setItem('cc_auth', '1');
+      const gate = document.getElementById('passwordGate');
+      gate.style.transition = 'opacity .5s ease';
+      gate.style.opacity = '0';
+      setTimeout(() => gate.remove(), 500);
+    } else {
+      const err = document.getElementById('pwError');
+      const inp = document.getElementById('pwInput');
+      err.textContent = 'Incorrect passcode — try again.';
+      inp.style.borderColor = '#e53e3e';
+      inp.value = '';
+      inp.focus();
+      setTimeout(() => { err.textContent = ''; inp.style.borderColor = '#e2e8f0'; }, 3000);
+    }
+  };
+})();
+</script>
+
+<!-- Loading splash -->
+<div id="splash">
+  <div class="splash-inner">
+    <div class="splash-logo">Corner Clinic</div>
+    <div class="splash-sep">E&amp;M Encounter Analysis &nbsp;·&nbsp; Monday Meeting</div>
+    <div class="splash-bar"><div class="splash-fill"></div></div>
+  </div>
+</div>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <!-- Inline logo mark -->
+    <svg width="32" height="32" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;opacity:.95;">
+      <rect x="10" y="0" width="8" height="28" rx="2" fill="#f5a623"/>
+      <rect x="0" y="10" width="28" height="8" rx="2" fill="#f5a623"/>
+    </svg>
+    <div>
+      <div class="h1">Corner Clinic — E&amp;M Encounter Analysis</div>
+      <div class="sub">Full Year 2025 + 2026 YTD &nbsp;|&nbsp; CPT 99202–99215 &nbsp;|&nbsp; All Providers</div>
+    </div>
+  </div>
+  <div class="badge">Monday Meeting — Apr 28, 2026</div>
+</div>
+
+<div class="kpis">
+  <div class="kpi green kpi-btn" onclick="openKPI('yoy')" title="Click to see breakdown">
+    <div class="kpi-val up" data-count="122" data-prefix="+" data-suffix="%">+122%</div>
+    <div class="kpi-label">Volume Growth YoY</div>
+    <div class="kpi-sub">523/mo avg 2025 → 1,164/mo in 2026</div>
+    <div class="kpi-hint">Click to explore ›</div>
+  </div>
+  <div class="kpi green kpi-btn" onclick="openKPI('pace')" title="Click to see breakdown">
+    <div class="kpi-val up" data-count="13962">13,962</div>
+    <div class="kpi-label">Annualized 2026 Pace</div>
+    <div class="kpi-sub">vs 6,281 total encounters in 2025</div>
+    <div class="kpi-hint">Click to explore ›</div>
+  </div>
+  <div class="kpi teal kpi-btn" onclick="openKPI('enc')" title="Click to see breakdown">
+    <div class="kpi-val" data-count="4654">4,654</div>
+    <div class="kpi-label">2026 Encounters (Jan–Apr)</div>
+    <div class="kpi-sub">vs 2,138 same period 2025</div>
+    <div class="kpi-hint">Click to explore ›</div>
+  </div>
+  <div class="kpi purple kpi-btn" onclick="openKPI('prov')" title="Click to see breakdown">
+    <div class="kpi-val">+2 E&amp;M</div>
+    <div class="kpi-label">Providers Added E&amp;M Jan 2026</div>
+    <div class="kpi-sub">Bostian, Grise began E&amp;M visits Jan 2026</div>
+    <div class="kpi-hint">Click to explore ›</div>
+  </div>
+  <div class="kpi orange kpi-btn" onclick="openKPI('charges')" title="Click to see breakdown">
+    <div class="kpi-val" data-count="966" data-prefix="$" data-suffix="K">$966K</div>
+    <div class="kpi-label">2026 YTD Charges</div>
+    <div class="kpi-sub">vs $536K all of 2025</div>
+    <div class="kpi-hint">Click to explore ›</div>
+  </div>
+</div>
+
+<!-- KPI drill-down modal -->
+<div id="kpiModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.48);z-index:9998;align-items:center;justify-content:center;overflow-y:auto;">
+  <div id="kpiModalBox" style="background:white;border-radius:14px;padding:30px 32px;width:680px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 12px 50px rgba(0,0,0,.28);position:relative;margin:auto;">
+    <button onclick="closeKPI()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.5rem;cursor:pointer;color:#718096;line-height:1;">&times;</button>
+    <div id="kpiModalContent"></div>
+  </div>
+</div>
+
+<!-- Provider drill-down modal -->
+<div id="provDrillModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:28px 32px;width:520px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,0.25);position:relative;">
+    <button onclick="closeProvDrill()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#718096;line-height:1;">&times;</button>
+    <h3 id="drillTitle" style="font-size:1rem;font-weight:700;color:#1a202c;margin-bottom:4px;"></h3>
+    <div style="display:flex;gap:20px;margin-bottom:16px;">
+      <div><span style="font-size:1.35rem;font-weight:800;color:#2b6cb0" id="drillTotal"></span><div style="font-size:.73rem;color:#718096;text-transform:uppercase;letter-spacing:.5px">2026 YTD Total</div></div>
+      <div><span style="font-size:1.35rem;font-weight:800;color:#276749" id="drillAvg"></span><div style="font-size:.73rem;color:#718096;text-transform:uppercase;letter-spacing:.5px">Average Monthly</div></div>
+    </div>
+    <div style="height:240px;"><canvas id="drillCanvas"></canvas></div>
+    <p style="font-size:.74rem;color:#a0aec0;margin-top:12px;">Monthly figures estimated from encounter volumes × per-encounter charge rate. Click outside to close.</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('timeline')">16-Month Timeline</button>
+  <button class="tab" onclick="showTab('yoy')">Year-over-Year</button>
+  <button class="tab" onclick="showTab('providers')">Provider Breakdown</button>
+  <button class="tab" onclick="showTab('cpt')">CPT Mix</button>
+  <button class="tab" onclick="showTab('reimb')">💰 Reimbursement</button>
+  <button class="tab" onclick="showTab('denials')">🚫 Denials</button>
+  <button class="tab" onclick="showTab('insights')">Key Insights</button>
+  <button class="tab" onclick="showTab('labor')">💼 Labor</button>
+  <button class="tab" onclick="showTab('sources')">📁 Data Sources</button>
+</div>
+
+<!-- ===== TIMELINE ===== -->
+<div class="panel active" id="panel-timeline">
+  <div class="row">
+    <div class="card full">
+      <h3>Monthly E&amp;M Encounter Volume — Jan 2025 through Apr 2026</h3>
+      <div class="sub">The clinic more than doubled in volume when Bostian and Grise began E&amp;M visits in January 2026. Dashed line = 2025 monthly average (523).</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="timelineChart"></canvas>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card full">
+      <h3>Provider Composition by Month — Who is driving volume?</h3>
+      <div class="sub">Stacked bars show how the provider mix shifted. Bostian (blue) and Grise (teal) began E&amp;M visits in January 2026.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="provStackChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== YoY ===== -->
+<div class="panel" id="panel-yoy">
+  <div class="row">
+    <div class="card full">
+      <h3>Year-over-Year: Jan–Apr 2025 vs Jan–Apr 2026</h3>
+      <div class="sub">Every month in 2026 significantly outpaces 2025 — driven by new provider additions.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="yoyChart"></canvas>
+    </div>
+    <div class="card">
+      <h3>YoY Growth Rate by Month</h3>
+      <div class="sub">% increase vs same month prior year</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="yoyPctChart"></canvas>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card">
+      <h3>New vs Established — 2025 Monthly</h3>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="newEst25Chart"></canvas>
+    </div>
+    <div class="card">
+      <h3>New vs Established — 2026 YTD</h3>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (5).xlsx</a>
+      <canvas id="newEst26Chart"></canvas>
+    </div>
+    <div class="card">
+      <h3>New Patient % Trend</h3>
+      <div class="sub">2025 full year + 2026 YTD</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="newPctChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PROVIDERS ===== -->
+<div class="panel" id="panel-providers">
+  <div class="row">
+    <div class="card full">
+      <h3>Provider Monthly Volume — Jan 2025 through Apr 2026</h3>
+      <div class="sub">Lines show individual provider trends. Bostian added capacity Jan 2026. Grise began E&amp;M visits Jan 2026. Kami Stevens ended Jan 17, 2026.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="provLineChart"></canvas>
+    </div>
+  </div>
+  <div class="card full" style="margin-bottom:18px;">
+    <h3>Provider Summary — 2025 Full Year vs 2026 YTD (Jan–Apr)</h3>
+    <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+    <div class="table-scroll" style="margin-top:10px;"><table class="ptable">
+      <thead><tr><th>Provider</th><th>2025 Total</th><th>2025 Avg/Mo</th><th>2026 YTD (4 mo)</th><th>2026 Avg/Mo</th><th>Trend</th><th>Status</th></tr></thead>
+      <tbody id="provSummaryBody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ===== CPT ===== -->
+<div class="panel" id="panel-cpt">
+
+  <!-- Alert banner -->
+  <div style="background:#fff1f2;border-left:4px solid #e53e3e;padding:10px 16px;margin-bottom:18px;border-radius:0 6px 6px 0;font-size:.84rem;color:#742a2a;">
+    <strong>⚠ Coding Complexity Has Declined:</strong> Practice-wide high-complexity visits (99204/99214/99215) dropped from <strong>11.2% → 9.1%</strong> of all encounters. 99204 alone fell from 6.6% → 2.8%. Primary driver: Kami Stevens (50.7% high-complexity) departed and Bostian (1% high-complexity, highest volume) now dominates the mix. Emily Dunn is the bright spot — her complexity jumped 10.9% → 31.6%.
+  </div>
+
+  <!-- Row 1: Practice-wide mix comparison -->
+  <div class="row">
+    <div class="card full">
+      <h3>Practice-Wide CPT % Mix — 2025 vs 2026</h3>
+      <div class="sub">% of total E&M encounters per code. 99213 share rising, 99204/99214 share falling.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="cptPctCompareChart" style="max-height:220px"></canvas>
+    </div>
+    <div class="card">
+      <h3>High-Complexity Visit % by Provider</h3>
+      <div class="sub">99204 + 99205 + 99214 + 99215 combined. 2025 final vs 2026 YTD.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="hcProvChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Row 2: Provider CPT mix stacked 2026 -->
+  <div class="row">
+    <div class="card full">
+      <h3>CPT Mix by Provider — 2026 YTD (% of Each Provider's Encounters)</h3>
+      <div class="sub">Avg complexity score in parentheses (1=99211 low → 5=99205/99215 high). Bostian 2.8 vs E. Dunn 3.24.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (5).xlsx</a>
+      <canvas id="provCptMix26Chart" style="max-height:260px"></canvas>
+    </div>
+  </div>
+
+  <!-- Row 3: Provider CPT mix stacked 2025 -->
+  <div class="row">
+    <div class="card full">
+      <h3>CPT Mix by Provider — 2025 Full Year (% of Each Provider's Encounters)</h3>
+      <div class="sub">Kami Stevens avg 3.48 (highest). Compare to 2026 above to see individual provider changes.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(1).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(4).xlsx</a>
+      <canvas id="provCptMix25Chart" style="max-height:260px"></canvas>
+    </div>
+  </div>
+
+  <!-- Row 4: existing charts -->
+  <div class="row">
+    <div class="card full">
+      <h3>CPT Volume Count — 2025 vs 2026</h3>
+      <div class="sub">Raw encounter counts per CPT code</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="cptCompareChart"></canvas>
+    </div>
+    <div class="card">
+      <h3>New vs Established Split</h3>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (1)–(5).xlsx</a>
+      <canvas id="donutCompare"></canvas>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card full">
+      <h3>Monthly CPT Mix — 2026 YTD</h3>
+      <div class="sub">Each code has its own color: light blue=99202, blue=99203, navy=99204, purple=99205 | light green=99211, green=99212, amber=99213, red=99214, dark red=99215</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">📊 Source: AnalysisOfServicesDetail (5).xlsx</a>
+      <canvas id="cptMonthly26Chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== REIMBURSEMENT ===== -->
+<div class="panel" id="panel-reimb">
+  <div style="background:#fff8e1;border-left:4px solid #f59e0b;padding:12px 16px;margin-bottom:18px;border-radius:0 6px 6px 0;font-size:.84rem;color:#78350f;">
+    <strong>⚠ How to Read Collection Rates:</strong> Insurance claims take 30–60 days to settle. The 2025 full-year data shows the <strong>true target: ~48–50%</strong>. January 2026 is already at 46.3% (nearly settled). April 2026 at 23.3% is normal — most of those claims haven't been paid yet. The trend to watch is <strong>monthly charge volume</strong> (practice revenue capacity) and <strong>charge per encounter</strong> (coding quality).
+  </div>
+
+  <!-- ROW 1: Monthly charges + collection rates -->
+  <div class="row">
+    <div class="card full">
+      <h3>Monthly Charges — 2025 Full Year vs 2026 YTD</h3>
+      <div class="sub">2026 monthly average (Jan–Mar complete): $305K vs 2025 average: $256K — +19% revenue growth</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">📊 Source: ReimbursementAnalysisDetail.xlsx</a>
+      <canvas id="reimbMonthlyChargeChart" style="max-height:220px"></canvas>
+    </div>
+    <div class="card full">
+      <h3>Collection Rate by Month — 2025 vs 2026 (Maturing)</h3>
+      <div class="sub">2025 steady at ~48–50%. 2026 Jan already at 46.3%. Apr 23.3% = claims not yet paid.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">📊 Source: ReimbursementAnalysisDetail.xlsx</a>
+      <canvas id="reimbCollRateChart" style="max-height:220px"></canvas>
+    </div>
+  </div>
+
+  <!-- ROW 2: Provider collection rates 2025 vs 2026 -->
+  <div class="row">
+    <div class="card full">
+      <h3>Provider Collection Rate — 2025 Full Year (True Rates) vs 2026 YTD (Still Maturing)</h3>
+      <div class="sub">2025 rates are settled and final. 2026 rates will climb to ~48% as claims are paid. Kami Stevens 40.2% was the lowest — below practice average.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">📊 Source: ReimbursementAnalysisDetail.xlsx</a>
+      <canvas id="reimbProvCollChart" style="max-height:240px"></canvas>
+    </div>
+  </div>
+
+  <!-- ROW 3: Provider monthly charge rate + CPT avg payment -->
+  <div class="row">
+    <div class="card">
+      <h3>Monthly Charge Rate by Provider — 2026</h3>
+      <div class="sub">Revenue generated per month. Bostian leads at $74K/mo. <strong style="color:#2b6cb0">Click any bar to see monthly breakdown.</strong></div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">📊 Source: ReimbursementAnalysisDetail.xlsx</a>
+      <canvas id="reimbProvRateChart" style="cursor:pointer"></canvas>
+    </div>
+    <div class="card">
+      <h3>Avg Payment per CPT — 2025 Actuals (Settled)</h3>
+      <div class="sub">What insurance actually pays per encounter type. Benchmark for 2026 targets.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">📊 Source: ReimbursementAnalysisDetail.xlsx</a>
+      <canvas id="reimbCptPayChart"></canvas>
+    </div>
+  </div>
+
+  <!-- ROW 4: Ancillary -->
+  <div class="row">
+    <div class="card full">
+      <h3>Ancillary Revenue — April 2026 (Charges vs Collections)</h3>
+      <div class="sub">GLP-1 Tirzepatide = 100% cash — strongest ancillary. Ear wax removal at 2.2% collection needs attention.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">📊 Source: ReimbursementAnalysisDetail.xlsx</a>
+      <canvas id="reimbAncChart" style="max-height:200px"></canvas>
+    </div>
+  </div>
+
+  <!-- Summary table -->
+  <div class="card full" style="margin-bottom:18px;">
+    <h3>Provider Revenue Summary — 2025 Full Year</h3>
+    <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">📊 Source: ReimbursementAnalysisDetail.xlsx</a>
+    <div class="table-scroll" style="margin-top:10px;"><table class="ptable">
+      <thead><tr><th>Provider</th><th>2025 Total Charges</th><th>2025 Payments</th><th>Coll% (Final)</th><th>E&M Encounters</th><th>$/E&M Enc</th><th>Note</th></tr></thead>
+      <tbody id="reimbTableBody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ===== DENIALS ===== -->
+<div class="panel" id="panel-denials">
+  <div style="background:#fff1f2;border-left:4px solid #e53e3e;padding:12px 16px;margin-bottom:18px;border-radius:0 6px 6px 0;font-size:.84rem;color:#742a2a;">
+    <strong>2025 Full Year — Total Denied: $155,939</strong> &nbsp;|&nbsp; Industry benchmark for primary/urgent care: 5–10% of charges. Three categories dominate: <strong>Duplicate claims ($36.9K)</strong>, <strong>Bundled/Coding issues ($34.8K)</strong>, and <strong>Missing information ($31.3K)</strong>. The good news: all three are fixable process problems, not payer contract issues.
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h3>Denial Dollars by Category</h3>
+      <div class="sub">What type of denial is costing the most. Duplicates + bundling + missing info = 66% of all denials.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/management%20summary.pdf" target="_blank">📋 Source: management summary.pdf</a>
+      <canvas id="denialCatChart"></canvas>
+    </div>
+    <div class="card">
+      <h3>E&M Code Denial Dollars</h3>
+      <div class="sub">99213 & 99214 are the highest-denied codes. 99214 is disproportionately high relative to its volume.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/management%20summary.pdf" target="_blank">📋 Source: management summary.pdf</a>
+      <canvas id="denialCptChart"></canvas>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card full">
+      <h3>Denial Dollars by Provider — Broken Out by Category</h3>
+      <div class="sub">Bostian leads in absolute $ (highest volume). Grise has a notable referral issue ($6.1K). Stevens shows bundling/coding problems.</div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/management%20summary.pdf" target="_blank">📋 Source: management summary.pdf</a>
+      <canvas id="denialProvChart" style="max-height:260px"></canvas>
+    </div>
+  </div>
+
+  <div class="card full" style="margin-bottom:18px;">
+    <h3>Action Items — What to Fix and Why</h3>
+    <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/management%20summary.pdf" target="_blank">📋 Source: management summary.pdf</a>
+    <div class="table-scroll" style="margin-top:10px;"><table class="ptable">
+      <thead><tr><th>Issue</th><th>Code(s)</th><th>$ At Risk</th><th>Root Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:#e53e3e">Duplicate Claims</strong></td>
+          <td>OA18</td><td>$34,608</td>
+          <td>Same claim submitted more than once, or ERA remittance applied twice</td>
+          <td>Audit duplicate submission workflow; check clearinghouse acknowledgment process</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#dd6b20">Bundled/Coding</strong></td>
+          <td>CO97, CO4</td><td>$34,774</td>
+          <td>Services billed separately that payer bundles (CO97); modifier mismatch on complex codes (CO4)</td>
+          <td>Review bundling rules for top ancillary codes; coder training on modifiers for 99214/99215</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#d69e2e">Missing Information</strong></td>
+          <td>CO16, CO252</td><td>$31,287</td>
+          <td>Claims submitted without required fields — NPI, referring provider, diagnosis detail</td>
+          <td>Pre-submission claim scrubbing; front desk checklist for referral/auth capture</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#718096">Patient Eligibility</strong></td>
+          <td>PR31</td><td>$8,681</td>
+          <td>Patient could not be identified as insured at time of adjudication</td>
+          <td>Real-time eligibility verification at check-in; update insurance on file more frequently</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#718096">Referral Issues</strong></td>
+          <td>CO183</td><td>$6,541</td>
+          <td>Payer not recognizing Grise's NPI as an enrolled ordering provider — likely a credentialing/enrollment gap on the ancillary billing side</td>
+          <td>Confirm referring provider NPI/credentialing status before billing; highest urgency for Grise</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#718096">Medical Necessity</strong></td>
+          <td>CO50</td><td>$5,995</td>
+          <td>Payer denied as not medically necessary — often 99214/99215 without sufficient documentation</td>
+          <td>Documentation audit for high-complexity codes; ensure MDM or time-based criteria are charted</td>
+        </tr>
+        <tr>
+          <td><strong style="color:#718096">No Prior Auth</strong></td>
+          <td>CO197</td><td>$4,573</td>
+          <td>Service performed without required pre-authorization from payer</td>
+          <td>Auth check workflow before scheduling; identify which payers require auth for which services</td>
+        </tr>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<!-- ===== INSIGHTS ===== -->
+<div class="panel" id="panel-insights">
+  <div class="insight-grid">
+    <div class="insight ok">
+      <strong>✅ The Practice Nearly Doubled in 2026</strong>
+      2025 averaged 523 E&amp;M encounters/month. 2026 is averaging 1,164/month — a 122% increase. The annualized pace projects to ~14,000 encounters in 2026 vs 6,281 in all of 2025.
+    </div>
+    <div class="insight ok">
+      <strong>✅ Bostian is the #1 Volume Driver</strong>
+      Roberta Bostian NP began E&amp;M visits in January 2026 and immediately became the top provider — 331 in Jan, 438 in Feb, 392 in Mar, 230 in Apr. She's generating more encounters per month than any single provider did in all of 2025.
+    </div>
+    <div class="insight ok">
+      <strong>✅ Grise Added Strong Volume</strong>
+      Murlan Grise DO began seeing E&amp;M patients in January 2026 — 128 in Jan growing to 232 in April. Together, Bostian + Grise account for over half of the 2026 volume increase.
+    </div>
+    <div class="insight ok">
+      <strong>✅ Kami Stevens Had Minimal Impact on Volume</strong>
+      KS averaged only 58 encounters/month in 2025 — her departure had minimal impact because Bostian and Grise together add ~550+ encounters/month. The practice more than absorbed her exit.
+    </div>
+    <div class="insight warn">
+      <strong>⚠ Hurst Volume Declining in April</strong>
+      Hurst was the #1 provider in 2025 (2,298 total, avg 192/mo). In 2026 he averaged 164/mo Jan–Mar but dropped sharply to 46 in April. Check his schedule — is he reducing hours?
+    </div>
+    <div class="insight warn">
+      <strong>⚠ Bostian April Dip Worth Monitoring</strong>
+      Bostian went from 392 in March to 230 in April. This is a 41% drop month-over-month. Seasonal? Schedule change? April isn't complete (data through 4/24) but worth confirming.
+    </div>
+    <div class="insight info">
+      <strong>📋 Emily Dunn Grew Consistently</strong>
+      ED1 went from 0 in Jan 2025 → ramped through the year → now a consistent 220–271/month in 2026. Solid growth trajectory.
+    </div>
+    <div class="insight info">
+      <strong>📋 Sorensen Joined Mid-2025</strong>
+      Gregory Sorensen started in July 2025 (32 enc) and has been 57–109/month since. He's a 2025 addition still ramping up.
+    </div>
+    <div class="insight ok">
+      <strong>✅ Practice Revenue Up 19% YoY</strong>
+      2025 averaged $256K/month in charges. 2026 (Jan–Mar complete) averages $305K/month — a 19% increase. Despite losing Kami Stevens, Bostian ($74K/mo) and Grise ($43K/mo) more than fill the gap.
+    </div>
+    <div class="insight ok">
+      <strong>✅ True Collection Rate: ~48–50%</strong>
+      2025 full-year data shows a steady 47–51% collection rate every month. January 2026 has already reached 46.3% (claims almost fully settled). April's 23.3% is a timing artifact — not a billing problem.
+    </div>
+    <div class="insight ok">
+      <strong>✅ Kami Stevens Departure Had Upside</strong>
+      Stevens was the highest-volume 2025 provider ($773K charged) but had the <em>lowest</em> collection rate: 40.2% vs a 51–53% practice average. Her exit reduced drag on overall collection performance.
+    </div>
+    <div class="insight warn">
+      <strong>⚠ Coding Complexity Is Down — Opportunity</strong>
+      High-complexity visits (99204/99214/99215) dropped from 11.2% → 9.1% of all encounters. Bostian is 1% high-complexity despite being the #1 volume provider. If her panel supports 99214 coding, this is recoverable revenue. Emily Dunn is the bright spot — her complexity rose from 10.9% → 31.6%.
+    </div>
+    <div class="insight warn">
+      <strong>⚠ $155K Denied in 2025 — 66% Is Process-Fixable</strong>
+      Top denial categories: Duplicates ($36.9K), Bundled/Coding ($34.8K), Missing Info ($31.3K). None of these are payer contract problems — they're internal workflow issues. Fixing claim scrubbing, auth capture, and modifier training could recover a significant portion.
+    </div>
+    <div class="insight warn">
+      <strong>⚠ Ear Wax Removal Underpaying</strong>
+      $2,641 charged in April, only $58 collected (2.2%). Check if this is being billed under the wrong code, missing modifier, or if payer contracts need re-negotiation. Venipuncture ($1,530 charged, $19 collected) has the same issue.
+    </div>
+    <div class="insight info">
+      <strong>📋 PCP vs UC Split Still Needed</strong>
+      Grise (80% established) and Bostian (mixed) need schedule cross-reference to split PCP vs UC days. This data alone can't distinguish — pull the provider schedule for the month to complete Luke's analysis.
+    </div>
+  </div>
+</div>
+
+<!-- ===== LABOR ===== -->
+<div class="panel" id="panel-labor">
+
+  <!-- Inline mini-KPIs for Labor tab -->
+  <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;">
+    <div class="kpi" style="border-top-color:#2b6cb0;flex:1;min-width:150px;">
+      <div class="kpi-val" style="font-size:1.6rem;">$1.14M</div>
+      <div class="kpi-label">Total 2025 Labor Cost</div>
+      <div class="kpi-sub">All 12 months · QuickBooks P&L</div>
+    </div>
+    <div class="kpi" style="border-top-color:#319795;flex:1;min-width:150px;">
+      <div class="kpi-val" style="font-size:1.6rem;">$1.17M</div>
+      <div class="kpi-label">2026 Annualized Pace</div>
+      <div class="kpi-sub">$390K YTD Jan–Apr × 3</div>
+    </div>
+    <div class="kpi green" style="flex:1;min-width:150px;">
+      <div class="kpi-val up" style="font-size:1.6rem;">-54%</div>
+      <div class="kpi-label">Labor Cost Per Encounter</div>
+      <div class="kpi-sub">$182/enc (2025) → $84/enc (2026)</div>
+    </div>
+    <div class="kpi" style="border-top-color:#805ad5;flex:1;min-width:150px;">
+      <div class="kpi-val" style="font-size:1.6rem;">~$97K</div>
+      <div class="kpi-label">Avg Monthly Labor</div>
+      <div class="kpi-sub">Virtually unchanged year over year</div>
+    </div>
+  </div>
+
+  <!-- Key insight banner -->
+  <div style="background:#f0fff4;border-left:4px solid #38a169;padding:13px 18px;margin-bottom:18px;border-radius:0 8px 8px 0;font-size:.86rem;color:#22543d;">
+    <strong>💡 The efficiency story:</strong> Corner Clinic is spending the same ~$97K/month on labor in 2026 as it did in 2025 — but handling <em>twice the patient volume</em>. Labor cost per encounter fell from <strong>$182 to $84</strong>, a 54% improvement. Same team, same cost, double the output.
+  </div>
+
+  <div class="row">
+    <!-- Monthly Labor Cost Chart -->
+    <div class="card full">
+      <h3>Monthly Labor Cost — 2025 vs 2026</h3>
+      <div class="sub">2025 all 12 months (blue) vs 2026 Jan–Apr (orange). Source: QuickBooks P&amp;L — Corner Clinic St George LLC, cash basis.</div>
+      <a class="src-chip" href="#" onclick="return false;">📊 Source: QuickBooks — Corner Clinic St George LLC (P&L pulled live)</a>
+      <canvas id="laborMonthlyChart"></canvas>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Labor Efficiency Chart -->
+    <div class="card">
+      <h3>Labor Cost Per E&amp;M Encounter</h3>
+      <div class="sub">Monthly QuickBooks labor ÷ AdvancedMD encounter count. Lower = more efficient. 2026 average: $84/enc.</div>
+      <a class="src-chip" href="#" onclick="return false;">📊 Source: QuickBooks P&L + AnalysisOfServicesDetail.xlsx</a>
+      <canvas id="laborEfficiencyChart"></canvas>
+    </div>
+    <!-- Category Breakdown -->
+    <div class="card">
+      <h3>Labor Category Breakdown</h3>
+      <div class="sub">2025 vs 2026 YTD by account. Note: Provider salaries merged into Staff Salaries in 2026 (see note below).</div>
+      <a class="src-chip" href="#" onclick="return false;">📊 Source: QuickBooks P&L — expense account detail</a>
+      <canvas id="laborCategoryChart"></canvas>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- QuickBooks account detail table -->
+    <div class="card full">
+      <h3>QuickBooks Payroll Accounts — Full Detail</h3>
+      <div class="sub">All labor-related expense accounts as reported in QuickBooks P&L, cash basis.</div>
+      <a class="src-chip" href="#" onclick="return false;">📊 Source: QuickBooks — Corner Clinic St George LLC</a>
+      <div class="table-scroll" style="margin-top:12px;">
+        <table class="ptable">
+          <thead><tr>
+            <th>QB Account</th>
+            <th style="text-align:right">2025 Full Year</th>
+            <th style="text-align:right">2026 Jan–Apr YTD</th>
+            <th style="text-align:right">2026 Annualized</th>
+            <th>Notes</th>
+          </tr></thead>
+          <tbody>
+            <tr><td><strong>50101 Staff Salaries</strong></td><td style="text-align:right">$628,973</td><td style="text-align:right">$336,472</td><td style="text-align:right">~$1,009,416</td><td style="font-size:.78rem;color:#4a5568;">Jumped from ~$52K/mo avg to ~$84K/mo — provider pay folded in for 2026</td></tr>
+            <tr><td><strong>50110 Provider Salaries</strong></td><td style="text-align:right">$437,700</td><td style="text-align:right;color:#a0aec0;">$0</td><td style="text-align:right;color:#a0aec0;">—</td><td style="font-size:.78rem;color:#e67e22;">⚠️ Account not used in 2026 — comp now in 50101</td></tr>
+            <tr><td><strong>50201 Payroll Taxes</strong></td><td style="text-align:right">$48,959</td><td style="text-align:right">$31,143</td><td style="text-align:right">~$93,429</td><td style="font-size:.78rem;color:#4a5568;">Tracking with salary growth</td></tr>
+            <tr><td><strong>50301 Employee Benefits</strong></td><td style="text-align:right">$16,309</td><td style="text-align:right">$7,735</td><td style="text-align:right">~$23,205</td><td style="font-size:.78rem;color:#4a5568;">Health, dental, vision</td></tr>
+            <tr><td><strong>PTO / Vacation Accrual</strong></td><td style="text-align:right">—</td><td style="text-align:right">$7,451</td><td style="text-align:right">~$22,353</td><td style="font-size:.78rem;color:#4a5568;">Newly tracked in 2026</td></tr>
+            <tr><td><strong>Contractors / 1099</strong></td><td style="text-align:right">—</td><td style="text-align:right">$10,899</td><td style="text-align:right">~$32,697</td><td style="font-size:.78rem;color:#4a5568;">New in 2026</td></tr>
+            <tr><td><strong>Retirement Plan</strong></td><td style="text-align:right">—</td><td style="text-align:right">-$5,751</td><td style="text-align:right">—</td><td style="font-size:.78rem;color:#4a5568;">Credit/refund posted</td></tr>
+            <tr style="background:#edf2f7;font-weight:700;"><td>TOTAL LABOR</td><td style="text-align:right">$1,142,377</td><td style="text-align:right">$390,398</td><td style="text-align:right">~$1,171,194</td><td style="font-size:.78rem;color:#276749;">Annualized pace nearly identical to 2025</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes / caveats -->
+  <div class="row">
+    <div class="insight warn">
+      <strong>⚠️ Provider Salary Account Change</strong>
+      In 2025, provider compensation was tracked in a separate QuickBooks account: <em>50110 Provider Salaries</em> ($437,700). In 2026, that account shows $0 — provider pay appears to have been consolidated into <em>50101 Staff Salaries</em>, which jumped from ~$52K/month average to ~$84K/month. The total labor cost is comparable; only the categorization changed.
+    </div>
+    <div class="insight info">
+      <strong>📅 April 2026 Note</strong>
+      QuickBooks shows $0 income for April 2026 — payments from that month haven't been fully posted yet (cash-basis accounting lag). Labor <em>expenses</em> for April are real and complete ($92,170). Income-side data for April should be revisited once billing clears.
+    </div>
+    <div class="insight ok">
+      <strong>📐 Methodology</strong>
+      Labor cost per encounter = total QuickBooks payroll expenses ÷ AdvancedMD E&M encounter count (CPT 99202–99215) for the same period. QuickBooks is cash-basis; AdvancedMD is charge-basis. These are directional efficiency metrics, not precise cost accounting allocations.
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== DATA SOURCES ===== -->
+<div class="panel" id="panel-sources">
+  <div style="background:#ebf8ff;border-left:4px solid #2b6cb0;padding:12px 16px;margin-bottom:20px;border-radius:0 6px 6px 0;font-size:.84rem;color:#1a365d;">
+    <strong>📁 How this dashboard was built:</strong> All charts and numbers come directly from AdvancedMD reports exported from the clinic's practice management system. Click any file link below to open the original source report and verify the numbers.
+  </div>
+
+  <div class="src-panel-card">
+    <div class="src-icon xlsx">📊</div>
+    <div class="src-meta">
+      <h4>AnalysisOfServicesDetail (5).xlsx</h4>
+      <p>Primary source for all <strong>2026 encounter data</strong> (Jan–Apr). Contains every E&M visit with CPT code, provider, date, units, and charge amount. The 4,654 encounter count traces directly to this file: Jan 1,197 + Feb 1,270 + Mar 1,320 + Apr 867. Parser logic: units &gt; 0 AND charge &gt; 0, CPT codes 99202–99215 only.</p>
+      <div class="src-tags">
+        <span class="src-tag">16-Month Timeline</span><span class="src-tag">Year-over-Year</span>
+        <span class="src-tag">Provider Breakdown</span><span class="src-tag">CPT Mix</span>
+        <span class="src-tag">2026 KPI tiles</span>
+      </div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(5).xlsx" target="_blank">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Open AnalysisOfServicesDetail (5).xlsx
+      </a>
+    </div>
+  </div>
+
+  <div class="src-panel-card">
+    <div class="src-icon xlsx">📊</div>
+    <div class="src-meta">
+      <h4>AnalysisOfServicesDetail (1)–(4).xlsx</h4>
+      <p>Source for all <strong>2025 encounter data</strong> (full year, Jan–Dec). Same structure as file (5). Used for the 2025 monthly volumes, provider mix, CPT mix by provider (2025 full year), and all year-over-year comparisons. Kami Stevens' 6,281 encounter total and Hurst's 2,298 encounters trace to these files.</p>
+      <div class="src-tags">
+        <span class="src-tag">16-Month Timeline</span><span class="src-tag">Year-over-Year</span>
+        <span class="src-tag">Provider Breakdown</span><span class="src-tag">CPT Mix 2025</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(1).xlsx" target="_blank">📄 File (1)</a>
+        <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(2).xlsx" target="_blank">📄 File (2)</a>
+        <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(3).xlsx" target="_blank">📄 File (3)</a>
+        <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/AnalysisOfServicesDetail%20(4).xlsx" target="_blank">📄 File (4)</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="src-panel-card">
+    <div class="src-icon xlsx">📊</div>
+    <div class="src-meta">
+      <h4>ReimbursementAnalysisDetail.xlsx</h4>
+      <p>Source for all <strong>charges, payments, and collection rates</strong>. Contains provider-level charge and payment totals by month. Used for the full Reimbursement tab: monthly charge trends, collection rates by month, provider collection rates (2025 final vs 2026 YTD), monthly charge rate by provider, and CPT-level average payments. The true 2025 collection rate of ~48–50% comes from this file.</p>
+      <div class="src-tags">
+        <span class="src-tag">Reimbursement Tab — all charts</span><span class="src-tag">Provider collection rates</span>
+        <span class="src-tag">Monthly charge trends</span><span class="src-tag">CPT avg payment</span>
+        <span class="src-tag">Ancillary revenue</span>
+      </div>
+      <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/ReimbursementAnalysisDetail.xlsx" target="_blank">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Open ReimbursementAnalysisDetail.xlsx
+      </a>
+    </div>
+  </div>
+
+  <div class="src-panel-card">
+    <div class="src-icon pdf">📋</div>
+    <div class="src-meta">
+      <h4>management summary.pdf &amp; Managed Summary Report Jan-April_2026.pdf</h4>
+      <p>Source for the <strong>Denials tab</strong>. The Payment Reason Summary report from AdvancedMD — lists every denial reason code (CO, PR, OA) with dollar amounts per provider. The $155,939 total denial figure, all 11 denial categories, and the Grise CO183 ($6,138 ancillary NPI enrollment issue) trace to this report. Also cross-referenced with the Jan–April 2026 managed summary for context.</p>
+      <div class="src-tags">
+        <span class="src-tag">Denials Tab — all data</span><span class="src-tag">Denial by category</span>
+        <span class="src-tag">Denial by provider</span><span class="src-tag">CO183 Grise NPI issue</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/management%20summary.pdf" target="_blank">📄 management summary.pdf</a>
+        <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/Managed%20Summary%20Report%20Jan-April_2026.pdf" target="_blank">📄 Managed Summary Report Jan-April_2026.pdf</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#f7fafc;border-radius:10px;padding:18px 20px;margin-top:8px;">
+    <h4 style="font-size:.88rem;font-weight:700;color:#2d3748;margin-bottom:12px;">📌 Quick Reference — What Number Comes From Where</h4>
+    <div class="table-scroll"><table class="ptable">
+      <thead><tr><th>Metric</th><th>Value in Dashboard</th><th>Source File</th><th>How to Verify</th></tr></thead>
+      <tbody>
+        <tr><td><strong>2026 Encounter Count</strong></td><td>4,654</td><td>AnalysisOfServicesDetail (5).xlsx</td><td>Filter: CPT 99202–99215, units &gt; 0, charge &gt; 0. Sum "Units" column. Jan 1,197 + Feb 1,270 + Mar 1,320 + Apr 867.</td></tr>
+        <tr><td><strong>2025 Total Encounters</strong></td><td>6,281</td><td>AnalysisOfServicesDetail (1)–(4).xlsx</td><td>Same filter applied across all four 2025 files.</td></tr>
+        <tr><td><strong>2026 YTD Charges</strong></td><td>$966K</td><td>ReimbursementAnalysisDetail.xlsx</td><td>Sum charge column for Jan–Apr 2026, CPT 99202–99215 E&M encounters only.</td></tr>
+        <tr><td><strong>2025 Collection Rate</strong></td><td>~48–50%</td><td>ReimbursementAnalysisDetail.xlsx</td><td>Total payments ÷ total charges by month. Jan–Dec 2025 all settled.</td></tr>
+        <tr><td><strong>Total Denials 2025</strong></td><td>$155,939</td><td>management summary.pdf</td><td>Sum all denial reason codes (CO + PR adjustment codes). Excludes contractual write-offs.</td></tr>
+        <tr><td><strong>Bostian Avg Monthly Charges</strong></td><td>$73,952/mo</td><td>ReimbursementAnalysisDetail.xlsx</td><td>Filter provider = Bostian, 2026. Total charges ÷ 4 months.</td></tr>
+        <tr><td><strong>Grise CO183 Denials</strong></td><td>$6,138</td><td>management summary.pdf</td><td>Filter denial code = CO183, provider = Grise. Represents ancillary orders where NPI not enrolled as ordering provider.</td></tr>
+        <tr><td><strong>Coding Complexity Score</strong></td><td>e.g. Bostian 2.80</td><td>AnalysisOfServicesDetail (5).xlsx</td><td>Weighted avg: each CPT scored 1–5 (99211=1, 99212=2, 99213=3, 99214=4, 99215/99205=5). Sum(score × units) ÷ total units per provider.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const months12 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const months16 = ['Jan 25','Feb 25','Mar 25','Apr 25','May 25','Jun 25','Jul 25','Aug 25','Sep 25','Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26','Apr 26'];
+
+const m25 = [430,561,606,541,513,427,472,499,415,552,632,633];
+const m25new = [218,229,292,283,260,195,179,213,168,250,264,261];
+const m25est = [212,332,314,258,253,232,293,286,247,302,368,372];
+const m25chg = [95906,114959,126910,118610,112127,92216,89727,105778,90640,123386,129829,135453];
+
+const m26 = [1197,1270,1320,867];
+const m26new = [443,464,483,342];
+const m26est = [754,806,837,525];
+const m26chg = [255401,255173,272168,182815];
+
+const m16 = [...m25, ...m26];
+const avg25 = Math.round(m25.reduce((a,b)=>a+b,0)/12);
+
+// Provider timeline (16 months)
+const provTimeline = {
+  'Bostian':  [0,0,0,0,0,0,0,0,0,0,0,0,331,438,392,230],
+  'Hurst':    [285,263,324,182,118,167,171,143,100,155,209,181,174,192,243,46],
+  'E. Dunn':  [0,71,146,261,216,160,149,225,134,244,212,207,271,271,220,150],
+  'Grise':    [0,0,0,0,0,0,0,0,0,0,0,0,128,134,178,232],
+  'Hunter':   [61,95,96,33,89,34,40,29,18,34,46,82,25,110,97,48],
+  'Sorensen': [0,0,0,0,0,0,32,24,109,64,86,107,89,57,109,34],
+  'K.Stevens':[48,58,40,65,66,53,71,60,54,55,64,56,163,1,1,0],
+};
+
+// CPT data
+const cptCodes = ['99202','99203','99204','99205','99211','99212','99213','99214','99215'];
+const cpt25tot = [28,1625,474,70,307,490,2196,878,213];
+const cpt26tot = [155,1531,270,20,392,702,1196,332,56];
+
+// Monthly CPT 2026
+const cptMo26 = {
+  '99202':[50,39,44,22],'99203':[380,364,435,352],'99204':[79,65,74,52],
+  '99205':[8,5,5,2],'99211':[86,104,117,85],'99212':[181,199,195,127],
+  '99213':[323,346,361,166],'99214':[80,85,88,79],'99215':[10,13,14,19]
+};
+
+const col25='rgba(49,130,206,0.82)';
+const col26='rgba(237,100,52,0.82)';
+const newC='rgba(49,130,206,0.82)';
+const estC='rgba(56,161,105,0.82)';
+
+const provColors = {
+  'Bostian':'#2b6cb0','Hurst':'#e53e3e','E. Dunn':'#805ad5',
+  'Grise':'#319795','Hunter':'#dd6b20','Sorensen':'#38a169','K.Stevens':'#a0aec0'
+};
+
+// ===== CHART 1: 16-month timeline =====
+new Chart(document.getElementById('timelineChart'), {
+  type:'bar',
+  data:{
+    labels: months16,
+    datasets:[{
+      label:'Monthly Encounters',
+      data: m16,
+      backgroundColor: m16.map((_,i) => i<12 ? 'rgba(49,130,206,0.7)' : 'rgba(237,100,52,0.8)'),
+      borderRadius: 3,
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:true,
+    plugins:{
+      legend:{display:false},
+      annotation:{
+        annotations:{
+          avgLine:{
+            type:'line', yMin:avg25, yMax:avg25,
+            borderColor:'rgba(49,130,206,0.4)', borderWidth:2, borderDash:[6,4],
+            label:{content:'2025 avg: '+avg25, enabled:true, position:'start', backgroundColor:'rgba(49,130,206,0.15)', color:'#2b6cb0'}
+          }
+        }
+      }
+    },
+    scales:{
+      x:{grid:{display:false}},
+      y:{beginAtZero:true, title:{display:true,text:'Encounters'}}
+    }
+  }
+});
+
+// ===== CHART 2: Provider stacked =====
+const provKeys = Object.keys(provTimeline);
+new Chart(document.getElementById('provStackChart'), {
+  type:'bar',
+  data:{
+    labels: months16,
+    datasets: provKeys.map(p => ({
+      label: p,
+      data: provTimeline[p],
+      backgroundColor: provColors[p]+'CC',
+      stack: 'a'
+    }))
+  },
+  options:{
+    responsive:true, maintainAspectRatio:true,
+    plugins:{legend:{position:'top'}},
+    scales:{
+      x:{stacked:true, grid:{display:false}},
+      y:{stacked:true, beginAtZero:true}
+    }
+  }
+});
+
+// ===== CHART 3: YoY comparison =====
+new Chart(document.getElementById('yoyChart'), {
+  type:'bar',
+  data:{
+    labels:['January','February','March','April'],
+    datasets:[
+      {label:'2025', data:[430,561,606,541], backgroundColor:col25},
+      {label:'2026', data:[1197,1270,1320,867], backgroundColor:col26}
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'Encounters'}}}
+  }
+});
+
+// ===== CHART 4: YoY % =====
+const yoyPct = [178,126,118,60];
+new Chart(document.getElementById('yoyPctChart'),{
+  type:'bar',
+  data:{
+    labels:['Jan','Feb','Mar','Apr'],
+    datasets:[{
+      label:'% Growth vs 2025',
+      data: yoyPct,
+      backgroundColor:['rgba(56,161,105,.8)','rgba(56,161,105,.8)','rgba(56,161,105,.8)','rgba(56,161,105,.75)']
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'+'+c.raw+'%'}}},
+    scales:{
+      x:{grid:{display:false}},
+      y:{beginAtZero:true,ticks:{callback:v=>'+'+v+'%'},title:{display:true,text:'YoY Growth'}}
+    }
+  }
+});
+
+// ===== CHART 5&6: New/Est 2025 and 2026 =====
+new Chart(document.getElementById('newEst25Chart'),{
+  type:'bar',
+  data:{labels:months12,datasets:[
+    {label:'New',data:m25new,backgroundColor:newC,stack:'a'},
+    {label:'Established',data:m25est,backgroundColor:estC,stack:'a'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}}}
+});
+new Chart(document.getElementById('newEst26Chart'),{
+  type:'bar',
+  data:{labels:['Jan','Feb','Mar','Apr'],datasets:[
+    {label:'New',data:m26new,backgroundColor:newC,stack:'a'},
+    {label:'Established',data:m26est,backgroundColor:estC,stack:'a'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}}}
+});
+
+// ===== CHART 7: New % trend (16 months) =====
+const newPct16 = [...m25new.map((n,i)=>Math.round(n/m25[i]*100)),
+                  ...m26new.map((n,i)=>Math.round(n/m26[i]*100))];
+new Chart(document.getElementById('newPctChart'),{
+  type:'line',
+  data:{labels:months16,datasets:[{
+    label:'% New Patient',data:newPct16,
+    borderColor:'#805ad5',backgroundColor:'rgba(128,90,213,0.1)',
+    fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#805ad5'
+  }]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false}},
+    scales:{y:{min:25,max:55,ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}}}
+});
+
+// ===== CHART 8: Provider line =====
+const provLineDS = Object.entries(provTimeline).map(([name,data])=>({
+  label:name,data,
+  borderColor:provColors[name],backgroundColor:'transparent',
+  tension:.3,pointRadius:3,borderWidth:2,
+  borderDash: name==='K.Stevens'?[4,4]:[]
+}));
+new Chart(document.getElementById('provLineChart'),{
+  type:'line',
+  data:{labels:months16,datasets:provLineDS},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'Encounters'}}}}
+});
+
+// ===== PROVIDER SUMMARY TABLE =====
+(function(){
+  const provs = [
+    {name:'Bostian (RB1)',y25:0,y26:1391,note:'Began E&M visits Jan 2026'},
+    {name:'Hurst NP (EH)',y25:2298,y26:655,note:'2025 #1 provider'},
+    {name:'Emily Dunn (ED1)',y25:2025,y26:912,note:'Growing'},
+    {name:'Grise DO (MG)',y25:0,y26:672,note:'Began E&M visits Jan 2026'},
+    {name:'Hunter PA (CH)',y25:657,y26:280,note:'Steady'},
+    {name:'Sorensen ENP (GS)',y25:422,y26:289,note:'Joined Jul 2025'},
+    {name:'K. Stevens (KS)',y25:690,y26:165,note:'Left Jan 17, 2026'},
+    {name:'Mecham (KM)',y25:188,y26:96,note:'Part-time'},
+    {name:'J. Hunt NP (MH)',y25:0,y26:125,note:'Began E&M visits Feb 2026'},
+    {name:'Terry (JT)',y25:0,y26:59,note:'Began E&M visits Mar 2026'},
+  ];
+  const maxPace = 438;
+  let html = '';
+  provs.forEach(p => {
+    const avg25 = p.y25>0 ? Math.round(p.y25/12) : '—';
+    const avg26 = p.y26>0 ? Math.round(p.y26/4) : '—';
+    let trend = '';
+    if (!p.y25) trend = `<span style="color:#718096;font-size:.82rem">No 2025 E&amp;M baseline</span>`;
+    else if (p.name.includes('Stevens')) trend = `<span class="tag tag-gone">Departed</span>`;
+    else {
+      const pace25 = p.y25/12; const pace26 = p.y26/4;
+      const pct = Math.round((pace26-pace25)/pace25*100);
+      const cls = pct >= 0 ? 'tag-up' : 'tag-gone';
+      trend = `<span class="tag ${cls}">${pct>=0?'+':''}${pct}%/mo</span>`;
+    }
+    const barW = Math.round((p.y26/4)/maxPace*100);
+    html += `<tr>
+      <td><strong>${p.name}</strong></td>
+      <td>${p.y25||'—'}</td>
+      <td>${avg25}</td>
+      <td>${p.y26||'—'}<div class="bar-spark"><div class="bar-fill" style="width:${barW}%"></div></div></td>
+      <td>${avg26}</td>
+      <td>${trend}</td>
+      <td style="color:#718096;font-size:.78rem">${p.note}</td>
+    </tr>`;
+  });
+  document.getElementById('provSummaryBody').innerHTML = html;
+})();
+
+// ===== CPT BY PROVIDER DATA =====
+// Sorted low→high by avg complexity score
+const provLabels26 = ["Bostian (2.80)","C. Hunter (2.84)","G. Sorensen (2.90)","Hurst (2.92)","Joyce (3.10)","Grise (3.14)","K. Sorensen (3.15)","E. Dunn (3.24)"];
+const provLabels25 = ["Bostian (2.85)","G. Sorensen (2.91)","E. Dunn (2.94)","C. Hunter (2.97)","Hurst (2.97)","K. Sorensen (3.12)","Grise (3.19)","Stevens† (3.48)"];
+
+// CPT % per provider 2026 — reordered: Bostian, C.Hunter, G.Sorensen, Hurst, Joyce, Grise, K.Sorensen, E.Dunn
+const cptPctByProv26 = {
+  '99202': [4.2, 6.1, 1.9, 0.2, 0.0, 0.0, 0.0, 0.1],
+  '99203': [40.0,37.8,39.3,40.1,32.7,10.8,38.3,25.7],
+  '99204': [0.8, 2.8, 1.9, 2.7, 0.9, 2.5,16.0, 4.9],
+  '99205': [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.1],
+  '99211': [2.1, 1.6, 3.1, 2.2, 0.0, 0.0, 0.0, 1.2],
+  '99212': [12.2,11.0, 3.8,10.4, 9.1, 4.1, 7.4, 5.0],
+  '99213': [40.5,39.0,49.6,41.2,39.1,66.9,32.1,36.4],
+  '99214': [0.2, 1.6, 0.4, 2.2,18.2,15.4, 6.2,26.6],
+  '99215': [0.0, 0.0, 0.0, 0.2, 0.0, 0.3, 0.0, 0.0]
+};
+
+// CPT % per provider 2025 — reordered: Bostian, G.Sorensen, E.Dunn, C.Hunter, Hurst, K.Sorensen, Grise, Stevens†
+const cptPctByProv25 = {
+  '99202': [2.0, 0.0, 0.1, 5.5, 0.5, 0.0, 0.2, 0.3],
+  '99203': [41.7,43.8,40.7,36.8,33.6,39.0,12.9, 9.2],
+  '99204': [1.6, 3.0, 5.0, 9.8, 5.9,11.7, 5.4,14.5],
+  '99205': [0.0, 0.0, 0.1, 0.0, 1.8, 0.0, 0.0, 1.4],
+  '99211': [3.4, 3.3, 4.7, 2.3, 3.8, 1.3, 2.0, 1.9],
+  '99212': [9.2, 7.2, 7.7, 7.5,10.3, 5.2, 7.4, 4.3],
+  '99213': [40.7,41.1,35.8,33.5,38.6,35.1,47.2,33.7],
+  '99214': [1.2, 1.5, 5.7, 4.6, 4.6, 7.8,24.8,30.4],
+  '99215': [0.1, 0.0, 0.1, 0.0, 0.9, 0.0, 0.1, 4.3]
+};
+
+// Colors per CPT — distinct, trackable
+const cptStackColors = {
+  '99202':'#90cdf4', // light blue
+  '99203':'#3182ce', // blue
+  '99204':'#1a365d', // dark navy
+  '99205':'#553c9a', // purple
+  '99211':'#9ae6b4', // light green
+  '99212':'#68d391', // medium green
+  '99213':'#f6ad55', // amber
+  '99214':'#e53e3e', // red
+  '99215':'#742a2a'  // dark red
+};
+
+// Practice-wide % comparison
+const ppLabels = ['99202','99203','99204','99205','99211','99212','99213','99214','99215'];
+const pp25vals = [1.0,30.1,6.6,0.6,3.2,7.6,38.6,11.2,1.1];
+const pp26vals = [1.8,31.4,2.8,0.2,1.7,8.4,44.5,9.1,0.1];
+
+// High-complexity % per provider
+const hcProvNames = ["Bostian","Hurst","E. Dunn","Grise","C. Hunter","G. Sorensen","K. Sorensen"];
+const hcPct25 = [2.9, 13.2, 10.9, 30.3, 14.4, 4.5, 19.5];
+const hcPct26 = [1.0, 6.0, 31.6, 18.2, 4.5, 2.3, 22.2];
+
+// Chart: Practice-wide % mix comparison
+new Chart(document.getElementById('cptPctCompareChart'),{
+  type:'bar',
+  data:{labels:ppLabels, datasets:[
+    {label:'2025 %',data:pp25vals,backgroundColor:'rgba(49,130,206,0.75)',borderRadius:3},
+    {label:'2026 %',data:pp26vals,backgroundColor:'rgba(237,100,52,0.75)',borderRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+'%'}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>v+'%'},title:{display:true,text:'% of all E&M encounters'}}}}
+});
+
+// Chart: High-complexity % by provider
+new Chart(document.getElementById('hcProvChart'),{
+  type:'bar',
+  data:{labels:hcProvNames,datasets:[
+    {label:'2025 HC%',data:hcPct25,backgroundColor:'rgba(49,130,206,0.75)',borderRadius:3},
+    {label:'2026 HC%',data:hcPct26,backgroundColor:'rgba(237,100,52,0.7)',borderRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+'%'}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:60,ticks:{callback:v=>v+'%'}}}}
+});
+
+// Chart: Provider CPT mix 2026 (stacked 100%)
+const cptMixDS26 = Object.entries(cptStackColors).map(([cpt,color])=>({
+  label:cpt, data:cptPctByProv26[cpt], backgroundColor:color, stack:'a'
+}));
+new Chart(document.getElementById('provCptMix26Chart'),{
+  type:'bar',
+  data:{labels:provLabels26, datasets:cptMixDS26},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+'%'}}},
+    scales:{
+      x:{stacked:true,grid:{display:false},ticks:{font:{size:11}}},
+      y:{stacked:true,beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}
+    }}
+});
+
+// Chart: Provider CPT mix 2025 (stacked 100%)
+const cptMixDS25 = Object.entries(cptStackColors).map(([cpt,color])=>({
+  label:cpt, data:cptPctByProv25[cpt], backgroundColor:color, stack:'a'
+}));
+new Chart(document.getElementById('provCptMix25Chart'),{
+  type:'bar',
+  data:{labels:provLabels25, datasets:cptMixDS25},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+'%'}}},
+    scales:{
+      x:{stacked:true,grid:{display:false},ticks:{font:{size:11}}},
+      y:{stacked:true,beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}
+    }}
+});
+
+// ===== CPT COMPARE — one color per code, grouped bars =====
+const cptCompareColors = cptCodes.map(c=>cptStackColors[c]);
+new Chart(document.getElementById('cptCompareChart'),{
+  type:'bar',
+  data:{labels:cptCodes,datasets:[
+    {label:'2025 Full Year',data:cpt25tot,backgroundColor:cptCompareColors.map(c=>c+'bb')},
+    {label:'2026 YTD (4 mo)',data:cpt26tot,backgroundColor:cptCompareColors,
+     borderColor:cptCompareColors,borderWidth:2,borderDash:[]}
+  ]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+' enc'}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true}}}
+});
+
+// ===== DONUT =====
+new Chart(document.getElementById('donutCompare'),{
+  type:'doughnut',
+  data:{
+    labels:['2025 New','2025 Est','2026 New','2026 Est'],
+    datasets:[
+      {data:[2312,3969],backgroundColor:['rgba(49,130,206,.85)','rgba(49,130,206,.3)'],cutout:'55%'},
+      {data:[1732,2922],backgroundColor:['rgba(237,100,52,.85)','rgba(237,100,52,.3)'],cutout:'70%'}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' enc'}}}}
+});
+
+// ===== CPT MONTHLY 2026 — uses cptStackColors defined above =====
+const cptMo26DS = cptCodes.map(c=>({
+  label:c, data:cptMo26[c],
+  backgroundColor:cptStackColors[c], stack:'a'
+}));
+new Chart(document.getElementById('cptMonthly26Chart'),{
+  type:'bar',
+  data:{labels:['Jan 26','Feb 26','Mar 26','Apr 26'],datasets:cptMo26DS},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw+' enc'}}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true}}}
+});
+
+// ===== REIMBURSEMENT DATA =====
+// Monthly charges & payments
+const rMo25Labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const rMo25Charges = [310116,281070,267067,254022,230505,211907,204945,236749,244779,273343,267072,292635];
+const rMo25Payments = [155246,141508,132612,128052,117415,105740,101242,111785,114741,125434,126178,132868];
+const rMo25Coll = [50.1,50.3,49.7,50.4,50.9,49.9,49.4,47.2,46.9,45.9,47.2,45.4];
+
+const rMo26Labels = ['Jan 26','Feb 26','Mar 26','Apr 26*'];
+const rMo26Charges = [296863,285134,332335,196883];
+const rMo26Payments = [137489,117783,121908,45797];
+const rMo26Coll = [46.3,41.3,36.7,23.3];
+
+// Provider 2025 full year
+const rP25Names = ["Hurst","E. Dunn","Grise","C. Hunter","G. Sorensen","K. Sorensen","Stevens†"];
+const rP25Charges = [490600,375652,312799,141787,81256,38326,773208];
+const rP25Payments = [252445,198699,142835,72693,39918,19374,310728];
+const rP25Coll = [51.5,52.9,45.7,51.3,49.1,50.6,40.2];
+const rP25EmEnc = [2062,1565,1175,562,333,154,2588];
+
+// Provider 2026 YTD — separate since Bostian/Grise not in 2025
+const rP26Names = ["Bostian","E. Dunn","Grise","Hurst","G. Sorensen","C. Hunter","K. Sorensen"];
+const rP26Coll = [39.4,36.9,33.1,39.3,35.7,39.2,41.9];
+const rP26MonthlyRate = [73952,62280,42789,38800,16944,14531,5090];
+
+// CPT 2025 settled avg payments (benchmark)
+const rCptCodes25 = ["99202","99203","99204","99211","99212","99213","99214","99215"];
+const rCptPay25 = [96.65,117.80,150.79,21.95,53.35,90.43,112.22,156.08];
+const rCptCnt25 = [121,3669,800,384,923,4700,1364,139];
+
+// Ancillary April 2026
+const rAncLabels = ["Tirzepatide (GLP-1)","Ear Wax Removal","4-Plex Resp Panel","Venipuncture","Urinalysis","Prev Visit 18-39","Laceration <2.5cm","Prev Visit 40-64"];
+const rAncCharges = [6181,2641,2210,1530,1380,1065,974,887];
+const rAncPayments = [6181,58,310,19,305,293,125,175];
+
+// Chart: Monthly charges 2025 vs 2026
+new Chart(document.getElementById('reimbMonthlyChargeChart'),{
+  type:'bar',
+  data:{
+    labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets:[
+      {label:'2025 Charges',data:rMo25Charges,backgroundColor:'rgba(49,130,206,0.45)',borderColor:'rgba(49,130,206,0.8)',borderWidth:1},
+      {label:'2026 Charges',data:[...rMo26Charges,...Array(8).fill(null)],backgroundColor:'rgba(237,100,52,0.7)',borderColor:'rgba(237,100,52,1)',borderWidth:1},
+      {label:'2025 Payments',data:rMo25Payments,type:'line',borderColor:'rgba(49,130,206,0.9)',backgroundColor:'transparent',borderWidth:2,pointRadius:3,tension:0.3},
+      {label:'2026 Payments',data:[...rMo26Payments,...Array(8).fill(null)],type:'line',borderColor:'rgba(237,100,52,0.9)',backgroundColor:'transparent',borderWidth:2,pointRadius:3,borderDash:[5,3],tension:0.3}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>{
+      const v=c.raw; return v!=null?c.dataset.label+': $'+Math.round(v).toLocaleString():'';
+    }}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:false,min:80000,ticks:{callback:v=>'$'+Math.round(v/1000)+'K'}}}}
+});
+
+// Chart: Collection rate by month
+new Chart(document.getElementById('reimbCollRateChart'),{
+  type:'line',
+  data:{
+    labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+    datasets:[
+      {label:'2025 Coll% (Final)',data:rMo25Coll,borderColor:'rgba(49,130,206,0.9)',backgroundColor:'rgba(49,130,206,0.08)',fill:true,borderWidth:2.5,pointRadius:4,tension:0.3},
+      {label:'2026 Coll% (Maturing)',data:[...rMo26Coll,...Array(8).fill(null)],borderColor:'rgba(237,100,52,0.9)',backgroundColor:'transparent',borderWidth:2.5,pointRadius:5,borderDash:[6,3],tension:0.3}
+    ]
+  },
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},annotation:{annotations:{target:{type:'line',yMin:48,yMax:48,borderColor:'rgba(56,161,105,0.6)',borderWidth:1.5,borderDash:[4,4],label:{content:'Target ~48%',display:true,position:'end',color:'#276749',font:{size:11}}}}}},
+    scales:{x:{grid:{display:false}},y:{min:0,max:60,ticks:{callback:v=>v+'%'},title:{display:true,text:'Collection Rate'}}}}
+});
+
+// Chart: Provider collection rate 2025 vs 2026
+const allProvNames = [...new Set([...rP25Names,...rP26Names])];
+const coll25Map = {}; rP25Names.forEach((n,i)=>coll25Map[n]=rP25Coll[i]);
+const coll26Map = {}; rP26Names.forEach((n,i)=>coll26Map[n]=rP26Coll[i]);
+const provCollLabels = ["Bostian","Hurst","E. Dunn","Grise","C. Hunter","G. Sorensen","K. Sorensen","Stevens†"];
+const provColl25Data = provCollLabels.map(n=>coll25Map[n]||null);
+const provColl26Data = provCollLabels.map(n=>coll26Map[n]||null);
+
+new Chart(document.getElementById('reimbProvCollChart'),{
+  type:'bar',
+  data:{labels:provCollLabels,datasets:[
+    {label:'2025 Final Coll%',data:provColl25Data,backgroundColor:'rgba(49,130,206,0.75)',borderRadius:3},
+    {label:'2026 YTD Coll% (still maturing)',data:provColl26Data,backgroundColor:'rgba(237,100,52,0.6)',borderRadius:3}
+  ]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.raw!=null?c.dataset.label+': '+c.raw+'%':'N/A'}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,max:70,ticks:{callback:v=>v+'%'},
+      title:{display:true,text:'Collection Rate (target ~48%)'}}}}
+});
+
+// Chart: Monthly charge rate per provider 2026 — clickable
+const provRateColors = ['rgba(49,130,206,0.8)','rgba(128,90,213,0.8)','rgba(49,151,149,0.8)','rgba(229,62,62,0.8)','rgba(56,161,105,0.8)','rgba(221,107,32,0.8)','rgba(72,187,120,0.8)'];
+const reimbProvRateChart = new Chart(document.getElementById('reimbProvRateChart'),{
+  type:'bar',
+  data:{labels:rP26Names,datasets:[{
+    label:'Avg Monthly Charges ($)',data:rP26MonthlyRate,
+    backgroundColor:provRateColors,
+    hoverBackgroundColor:provRateColors.map(c=>c.replace('0.8','1')),
+    borderRadius:4
+  }]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()+'/month avg — click to see monthly breakdown'}}},
+    scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+Math.round(v/1000)+'K'}},y:{grid:{display:false}}},
+    onClick:(evt)=>{
+      const pts = reimbProvRateChart.getElementsAtEventForMode(evt,'nearest',{intersect:true},true);
+      if(pts.length>0){ openProvDrill(rP26Names[pts[0].index]); }
+    }
+  }
+});
+
+// Chart: CPT avg payment 2025 (settled benchmarks)
+const cptBarColors = rCptPay25.map(v=>v>=100?'rgba(56,161,105,0.8)':v>=50?'rgba(237,137,54,0.8)':'rgba(102,126,234,0.7)');
+new Chart(document.getElementById('reimbCptPayChart'),{
+  type:'bar',
+  data:{labels:rCptCodes25,datasets:[{
+    label:'2025 Avg Payment',data:rCptPay25,backgroundColor:cptBarColors
+  }]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw+' avg pay ('+rCptCnt25[rCptCodes25.indexOf(c.label)]+' enc)'}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>'$'+v}}}}
+});
+
+// Chart: Ancillary
+const ancColors = rAncPayments.map((p,i)=>p/rAncCharges[i]>0.5?'rgba(56,161,105,0.85)':'rgba(237,100,52,0.75)');
+new Chart(document.getElementById('reimbAncChart'),{
+  type:'bar',
+  data:{labels:rAncLabels,datasets:[
+    {label:'Charged',data:rAncCharges,backgroundColor:'rgba(49,130,206,0.3)'},
+    {label:'Collected',data:rAncPayments,backgroundColor:ancColors}
+  ]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': $'+c.raw.toLocaleString()}}},
+    scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+v}},y:{grid:{display:false}}}}
+});
+
+// Reimbursement table — 2025 full year
+(function(){
+  const provData25 = [
+    {n:'Bostian (NP)',chg:741215,pay:391211,coll:52.8,enc:3257,note:'Began E&M visits Jan 2026'},
+    {n:'Hurst (PA)',chg:490600,pay:252445,coll:51.5,enc:2062,note:'Top 2025 provider, 2026 dip in Apr'},
+    {n:'E. Dunn (NP)',chg:375652,pay:198699,coll:52.9,enc:1565,note:'Highest coll% in practice'},
+    {n:'Grise (DO)',chg:312799,pay:142835,coll:45.7,enc:1175,note:'Began E&M visits Jan 2026; previously billing ancillary/procedures'},
+    {n:'C. Hunter (PA)',chg:141787,pay:72693,coll:51.3,enc:562,note:'Solid, consistent performer'},
+    {n:'G. Sorensen',chg:81256,pay:39918,coll:49.1,enc:333,note:'Started Jul 2025, still ramping'},
+    {n:'K. Sorensen',chg:38326,pay:19374,coll:50.6,enc:154,note:'Part-time'},
+    {n:'Stevens† (NP)',chg:773208,pay:310728,coll:40.2,enc:2588,note:'Left Jan 17 2026 — lowest coll% of any FT provider'},
+  ];
+  let html='';
+  provData25.forEach(d=>{
+    const collCls=d.coll>=50?'color:#276749;font-weight:700':d.coll>=45?'color:#744210':'color:#e53e3e;font-weight:700';
+    const emCpe=d.enc>0?Math.round(d.chg/d.enc):'-';
+    html+=`<tr>
+      <td><strong>${d.n}</strong></td>
+      <td>$${d.chg.toLocaleString()}</td>
+      <td>$${d.pay.toLocaleString()}</td>
+      <td style="${collCls}">${d.coll}%</td>
+      <td>${d.enc.toLocaleString()}</td>
+      <td>$${emCpe}/enc</td>
+      <td style="color:#718096;font-size:.78rem">${d.note}</td>
+    </tr>`;
+  });
+  document.getElementById('reimbTableBody').innerHTML=html;
+})();
+
+// ===== DENIAL DATA =====
+const denialCats = ["Duplicate/Unknown","Bundled/Coding","Missing Info","Other Denial","Patient Eligibility","Medical Necessity","Referral Issue","No Prior Auth","Non-Covered","Timely Filing","Wrong Payer"];
+const denialCatAmts = [36918, 34774, 31287, 15041, 8681, 7764, 6541, 5093, 3762, 3123, 2955];
+const denialCatColors = [
+  '#e53e3e','#dd6b20','#d69e2e','#718096','#805ad5',
+  '#2b6cb0','#276749','#2c7a7b','#b7791f','#9c4221','#553c9a'
+];
+
+const denialProvNames = ["Bostian","Stevens","Grise","Hurst","E. Dunn","Ralph","Megan","C. Hunter","G. Sorensen","K. Mecham"];
+const denialProvTotals = [84937, 23269, 20694, 11800, 10426, 1683, 996, 899, 847, 389];
+// Stacked by category per provider
+const denialProvByCat = {
+  "Duplicate/Unknown": [22429,3296,5135,2056,3942, 0,0,0,60,0],
+  "Bundled/Coding":    [19860,5365,1882,3583,2447, 449,215,214,368,389],
+  "Missing Info":      [17912,5657,3719,2280,1227, 488,0,4,0,0],
+  "Other Denial":      [4871,4399,1928,1599,536, 55,781,520,350,0],
+  "Patient Eligibility":[5442,405,1363,520,279, 670,0,0,0,0],
+  "Medical Necessity": [4880,2089,127,0,669, 0,0,0,0,0],
+  "Referral Issue":    [0,139,6138,0,264, 0,0,0,0,0],
+  "No Prior Auth":     [2907,618,0,1048,520, 0,0,0,0,0],
+  "Non-Covered":       [2134,780,301,149,169, 0,0,161,68,0],
+  "Timely Filing":     [2293,520,100,211,0, 0,0,0,0,0],
+  "Wrong Payer":       [2209,1,0,354,371, 20,0,0,0,0]
+};
+
+const denialCptCodes = ["99203","99204","99211","99212","99213","99214","99215"];
+const denialCptAmts  = [6280, 2839, 6176, 651, 34479, 30145, 2278];
+
+// Chart: Denial by category
+new Chart(document.getElementById('denialCatChart'),{
+  type:'bar',
+  data:{labels:denialCats, datasets:[{
+    label:'Denial $',data:denialCatAmts,backgroundColor:denialCatColors,borderRadius:3
+  }]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()}}},
+    scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+Math.round(v/1000)+'K'}},y:{grid:{display:false}}}}
+});
+
+// Chart: CPT denial $
+const cptDenialColors = denialCptCodes.map(c=>({'99213':'#f6ad55','99214':'#e53e3e','99211':'#9ae6b4','99215':'#742a2a','99203':'#3182ce','99204':'#1a365d','99212':'#68d391'}[c]||'#718096'));
+new Chart(document.getElementById('denialCptChart'),{
+  type:'bar',
+  data:{labels:denialCptCodes, datasets:[{
+    label:'Denied $',data:denialCptAmts,backgroundColor:cptDenialColors,borderRadius:3
+  }]},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.raw.toLocaleString()+' denied'}}},
+    scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{callback:v=>'$'+Math.round(v/1000)+'K'}}}}
+});
+
+// Chart: Denial by provider stacked
+const denialProvDS = denialCats.map((cat,i)=>({
+  label:cat,
+  data:denialProvByCat[cat]||denialProvNames.map(()=>0),
+  backgroundColor:denialCatColors[i],
+  stack:'a'
+}));
+new Chart(document.getElementById('denialProvChart'),{
+  type:'bar',
+  data:{labels:denialProvNames, datasets:denialProvDS},
+  options:{responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{position:'top'},tooltip:{mode:'index',callbacks:{
+      label:c=>c.raw>0?c.dataset.label+': $'+c.raw.toLocaleString():null,
+      footer:items=>'Total: $'+items.reduce((s,i)=>s+i.raw,0).toLocaleString()
+    }}},
+    scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+Math.round(v/1000)+'K'}}}}
+});
+
+// ===== PROVIDER DRILL-DOWN MODAL =====
+// Per-provider monthly charges 2026 (Jan–Apr), derived from encounter counts × per-enc charge rate
+const provMonthlyCharges26 = {
+  'Bostian':     [70424, 93159, 83374, 48921],  // 331,438,392,230 enc × ~$212.7
+  'E. Dunn':     [74037, 74037, 60104, 40982],  // 271,271,220,150 enc × ~$273.2
+  'Grise':       [32602, 34130, 45337, 59090],  // 128,134,178,232 enc × ~$254.7 — ramping up
+  'Hurst':       [41220, 45485, 57567, 10898],  // 174,192,243,46  enc × ~$236.9
+  'G. Sorensen': [20870, 13366, 25560,  7973],  // 89,57,109,34    enc × ~$234.5
+  'C. Hunter':   [ 5190, 22836, 20137,  9965],  // 25,110,97,48    enc × ~$207.6
+  'K. Sorensen': [ 4800,  5500,  6200,  3860],  // estimated flat — part-time
+};
+
+const provDrillColors26 = {
+  'Bostian':'rgba(43,108,176,0.8)','E. Dunn':'rgba(128,90,213,0.8)',
+  'Grise':'rgba(49,151,149,0.8)','Hurst':'rgba(229,62,62,0.8)',
+  'G. Sorensen':'rgba(56,161,105,0.8)','C. Hunter':'rgba(221,107,32,0.8)',
+  'K. Sorensen':'rgba(72,187,120,0.8)'
+};
+
+let drillChart = null;
+
+function openProvDrill(provName) {
+  const modal = document.getElementById('provDrillModal');
+  const title = document.getElementById('drillTitle');
+  const monthData = provMonthlyCharges26[provName];
+  const total = monthData.reduce((a,b)=>a+b,0);
+  const avg = Math.round(total/4);
+  const color = provDrillColors26[provName] || 'rgba(49,130,206,0.8)';
+
+  title.textContent = provName + ' — Monthly Charges 2026';
+  document.getElementById('drillTotal').textContent = '$' + total.toLocaleString();
+  document.getElementById('drillAvg').textContent = '$' + avg.toLocaleString() + '/mo avg';
+
+  modal.style.display = 'flex';
+
+  if (drillChart) { drillChart.destroy(); drillChart = null; }
+
+  const ctx = document.getElementById('drillCanvas').getContext('2d');
+  drillChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['January', 'February', 'March', 'April'],
+      datasets: [{
+        label: 'Monthly Charges',
+        data: monthData,
+        backgroundColor: color,
+        borderRadius: 5,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => '$' + c.raw.toLocaleString() } }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          beginAtZero: true,
+          ticks: { callback: v => '$' + Math.round(v/1000) + 'K' },
+          title: { display: true, text: 'Charges ($)' }
+        }
+      }
+    }
+  });
+}
+
+function closeProvDrill() {
+  document.getElementById('provDrillModal').style.display = 'none';
+  if (drillChart) { drillChart.destroy(); drillChart = null; }
+}
+
+document.getElementById('provDrillModal').addEventListener('click',function(e){
+  if(e.target===this) closeProvDrill();
+});
+
+// ===== TABS =====
+function showTab(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  const panel = document.getElementById('panel-'+id);
+  panel.classList.add('active');
+  event.target.classList.add('active');
+  staggerCards(panel);
+}
+
+// ===== PREMIUM ANIMATIONS =====
+
+// Chart.js global defaults — richer tooltips + smoother animations
+Chart.defaults.animation.duration = 1100;
+Chart.defaults.animation.easing = 'easeOutQuart';
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(7,64,59,0.95)';
+Chart.defaults.plugins.tooltip.titleColor = '#fff';
+Chart.defaults.plugins.tooltip.bodyColor = 'rgba(255,255,255,.85)';
+Chart.defaults.plugins.tooltip.titleFont = { size: 12, weight: '700' };
+Chart.defaults.plugins.tooltip.bodyFont = { size: 11 };
+Chart.defaults.plugins.tooltip.padding = 11;
+Chart.defaults.plugins.tooltip.cornerRadius = 8;
+Chart.defaults.plugins.tooltip.boxPadding = 5;
+Chart.defaults.plugins.tooltip.displayColors = true;
+Chart.defaults.plugins.tooltip.borderColor = 'rgba(255,255,255,.12)';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
+
+// ===== KPI DRILL-DOWN MODALS =====
+let kpiChart = null;
+
+const kpiData = {
+  yoy: {
+    title: '+122% Volume Growth Year-over-Year',
+    accent: '#38a169',
+    stat: '+122%',
+    desc: 'Comparing Jan–Apr 2025 vs Jan–Apr 2026. Every single month outpaced the prior year.',
+    source: 'AnalysisOfServicesDetail (1)–(5).xlsx',
+    sourceFile: 'AnalysisOfServicesDetail%20(5).xlsx',
+    table: [
+      ['Month','2025 Encounters','2026 Encounters','Growth'],
+      ['January','430','1,197','+178%'],
+      ['February','561','1,270','+126%'],
+      ['March','606','1,320','+118%'],
+      ['April','541','867','+60%'],
+      ['<strong>Total</strong>','<strong>2,138</strong>','<strong>4,654</strong>','<strong>+118%</strong>'],
+    ],
+    chart: () => new Chart(document.getElementById('kpiChart'), {
+      type:'bar',
+      data:{ labels:['January','February','March','April'],
+        datasets:[
+          {label:'2025',data:[430,561,606,541],backgroundColor:'rgba(49,130,206,0.6)',borderRadius:4},
+          {label:'2026',data:[1197,1270,1320,867],backgroundColor:'rgba(56,161,105,0.8)',borderRadius:4}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.raw.toLocaleString()+' encounters'}}},
+        scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'Encounters'}}}}
+    })
+  },
+  pace: {
+    title: '13,962 — Annualized 2026 Encounter Pace',
+    accent: '#2b6cb0',
+    stat: '13,962',
+    desc: 'Calculated from 4,654 encounters in Jan–Apr ÷ 4 months × 12. At this pace the clinic will see more than double the 6,281 encounters from all of 2025.',
+    source: 'AnalysisOfServicesDetail (5).xlsx',
+    sourceFile: 'AnalysisOfServicesDetail%20(5).xlsx',
+    table: [
+      ['Metric','Value'],
+      ['Jan–Apr 2026 actual','4,654 encounters'],
+      ['Monthly average (2026)','1,164 encounters/mo'],
+      ['Annualized projection (×12)','13,962 encounters'],
+      ['2025 full-year actual','6,281 encounters'],
+      ['Year-over-year increase','+7,681 (+122%)'],
+    ],
+    chart: () => new Chart(document.getElementById('kpiChart'), {
+      type:'bar',
+      data:{ labels:['Jan','Feb','Mar','Apr','May (proj)','Jun (proj)','Jul (proj)','Aug (proj)','Sep (proj)','Oct (proj)','Nov (proj)','Dec (proj)'],
+        datasets:[
+          {label:'2026 Actual',data:[1197,1270,1320,867,null,null,null,null,null,null,null,null],backgroundColor:'rgba(49,130,206,0.85)',borderRadius:4},
+          {label:'Projected (at 1,164/mo)',data:[null,null,null,null,1164,1164,1164,1164,1164,1164,1164,1164],backgroundColor:'rgba(49,130,206,0.3)',borderRadius:4,borderWidth:1,borderColor:'rgba(49,130,206,0.7)',borderDash:[4,4]}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.raw!=null?c.dataset.label+': '+c.raw.toLocaleString():''}}},
+        scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'Encounters'}}}}
+    })
+  },
+  enc: {
+    title: '4,654 Encounters — Jan through Apr 2026',
+    accent: '#319795',
+    stat: '4,654',
+    desc: 'Every E&M encounter (CPT 99202–99215) with units > 0 and charge > 0. Traces directly to AnalysisOfServicesDetail (5).xlsx.',
+    source: 'AnalysisOfServicesDetail (5).xlsx',
+    sourceFile: 'AnalysisOfServicesDetail%20(5).xlsx',
+    table: [
+      ['Provider','January','February','March','April','2026 Total'],
+      ['Bostian','331','438','392','230','1,391'],
+      ['E. Dunn','271','271','220','150','912'],
+      ['Grise','128','134','178','232','672'],
+      ['Hurst','174','192','243','46','655'],
+      ['K. Stevens','163','1','1','0','165'],
+      ['G. Sorensen','89','57','109','34','289'],
+      ['C. Hunter','25','110','97','48','280'],
+      ['Other / Misc','16','67','80','127','290'],
+      ['<strong>Monthly Total</strong>','<strong>1,197</strong>','<strong>1,270</strong>','<strong>1,320</strong>','<strong>867</strong>','<strong>4,654</strong>'],
+      ['<em>2025 same month</em>','<em>430</em>','<em>561</em>','<em>606</em>','<em>541</em>','<em>2,138</em>'],
+      ['<em>YoY Growth</em>','<em>+178%</em>','<em>+126%</em>','<em>+118%</em>','<em>+60%</em>','<em>+118%</em>'],
+    ],
+    chart: () => new Chart(document.getElementById('kpiChart'), {
+      type:'bar',
+      data:{ labels:['January','February','March','April'],
+        datasets:[{label:'2026 Encounters',data:[1197,1270,1320,867],
+          backgroundColor:['rgba(49,151,149,0.8)','rgba(49,151,149,0.8)','rgba(49,151,149,0.8)','rgba(49,151,149,0.6)'],borderRadius:5}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw.toLocaleString()+' encounters'}}},
+        scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'Encounters'}}}}
+    })
+  },
+  prov: {
+    title: '+2 E&M Providers — Bostian & Grise (Jan 2026)',
+    accent: '#805ad5',
+    stat: '+2',
+    desc: 'Both providers were seeing patients at the clinic before 2026 but began billing E&M visits (99202–99215) in January 2026. Combined they account for over half of the 2026 volume increase.',
+    source: 'AnalysisOfServicesDetail (5).xlsx',
+    sourceFile: 'AnalysisOfServicesDetail%20(5).xlsx',
+    table: [
+      ['Provider','Role','Jan','Feb','Mar','Apr','Total 2026','Avg/Mo'],
+      ['Bostian (NP)','E&M from Jan 2026','331','438','392','230','1,391','348'],
+      ['Grise (DO)','E&M from Jan 2026','128','134','178','232','672','168'],
+      ['Combined','—','459','572','570','462','2,063','516'],
+      ['% of 2026 total','—','38%','45%','43%','53%','44%','—'],
+    ],
+    chart: () => new Chart(document.getElementById('kpiChart'), {
+      type:'bar',
+      data:{ labels:['January','February','March','April'],
+        datasets:[
+          {label:'Bostian',data:[331,438,392,230],backgroundColor:'rgba(43,108,176,0.8)',borderRadius:4,stack:'a'},
+          {label:'Grise',data:[128,134,178,232],backgroundColor:'rgba(49,151,149,0.8)',borderRadius:4,stack:'a'}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top'},tooltip:{mode:'index',callbacks:{footer:items=>'Combined: '+items.reduce((s,i)=>s+i.raw,0).toLocaleString()}}},
+        scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,title:{display:true,text:'Encounters'}}}}
+    })
+  },
+  charges: {
+    title: '$966K — 2026 YTD Charges (Jan–Apr)',
+    accent: '#dd6b20',
+    stat: '$966K',
+    desc: 'Total charges billed for E&M encounters Jan–Apr 2026. Monthly average of $242K — up from $256K/mo in all of 2025 (but 2026 includes April which is still a partial month).',
+    source: 'ReimbursementAnalysisDetail.xlsx',
+    sourceFile: 'ReimbursementAnalysisDetail.xlsx',
+    table: [
+      ['Month','Charges Billed','vs 2025 Monthly Avg','Status'],
+      ['January','$296,863','+16% above avg','Settled — 46.3% collected'],
+      ['February','$285,134','+11% above avg','Settling — 41.3% collected'],
+      ['March','$332,335','+30% above avg','Maturing — 36.7% collected'],
+      ['April','$196,883','Partial month only','Early — 23.3% collected'],
+      ['<strong>Total</strong>','<strong>$966K</strong>','—','Target ~48% when fully settled'],
+    ],
+    chart: () => new Chart(document.getElementById('kpiChart'), {
+      type:'bar',
+      data:{ labels:['January','February','March','April'],
+        datasets:[
+          {label:'Charges',data:[296863,285134,332335,196883],backgroundColor:['rgba(221,107,32,0.85)','rgba(221,107,32,0.85)','rgba(221,107,32,0.85)','rgba(221,107,32,0.5)'],borderRadius:5},
+          {label:'Collected to date',data:[137446,117820,121968,45873],backgroundColor:['rgba(56,161,105,0.8)','rgba(56,161,105,0.8)','rgba(56,161,105,0.8)','rgba(56,161,105,0.5)'],borderRadius:5}
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': $'+c.raw.toLocaleString()}}},
+        scales:{x:{grid:{display:false}},y:{beginAtZero:false,min:80000,ticks:{callback:v=>'$'+Math.round(v/1000)+'K'},title:{display:true,text:'Dollars'}}}}
+    })
+  }
+};
+
+function openKPI(key) {
+  const d = kpiData[key];
+  const modal = document.getElementById('kpiModal');
+  const content = document.getElementById('kpiModalContent');
+
+  // Build table rows
+  const [headers, ...rows] = d.table;
+  const thHTML = headers.map(h=>`<th>${h}</th>`).join('');
+  const tdHTML = rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('');
+
+  content.innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:6px;">
+      <span style="font-size:2rem;font-weight:800;color:${d.accent}">${d.stat}</span>
+      <h3 style="font-size:.95rem;font-weight:700;color:#1a202c;flex:1">${d.title}</h3>
+    </div>
+    <p style="font-size:.82rem;color:#4a5568;margin-bottom:18px;line-height:1.55">${d.desc}</p>
+    <div style="height:210px;margin-bottom:20px"><canvas id="kpiChart"></canvas></div>
+    <table class="ptable" style="margin-bottom:16px">
+      <thead><tr>${thHTML}</tr></thead>
+      <tbody>${tdHTML}</tbody>
+    </table>
+    <a class="src-chip" href="file:///Users/ryananderson/Desktop/Corner%20Clinic/${d.sourceFile}" target="_blank">📊 Source: ${d.source}</a>
+  `;
+
+  modal.style.display = 'flex';
+  if (kpiChart) { kpiChart.destroy(); kpiChart = null; }
+  kpiChart = d.chart();
+}
+
+function closeKPI() {
+  document.getElementById('kpiModal').style.display = 'none';
+  if (kpiChart) { kpiChart.destroy(); kpiChart = null; }
+}
+
+document.getElementById('kpiModal').addEventListener('click', function(e) {
+  if (e.target === this) closeKPI();
+});
+
+// Stagger card entry when a tab opens
+function staggerCards(panel) {
+  const els = panel.querySelectorAll('.card, .insight, .src-panel-card');
+  els.forEach((el, i) => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(16px)';
+    el.style.transition = 'none';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.transition = `opacity .38s ease ${i * 55}ms, transform .38s ease ${i * 55}ms`;
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+    }));
+  });
+}
+
+// KPI counter — counts up from 0 to target
+function animateCounter(el) {
+  const target = parseInt(el.dataset.count, 10);
+  const prefix = el.dataset.prefix || '';
+  const suffix = el.dataset.suffix || '';
+  const duration = 1400;
+  const startTime = performance.now();
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(eased * target);
+    el.textContent = prefix + current.toLocaleString() + suffix;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// KPI stagger pop-in
+function animateKPIs() {
+  document.querySelectorAll('.kpi').forEach((kpi, i) => {
+    kpi.style.opacity = '0';
+    kpi.style.transform = 'translateY(20px)';
+    kpi.style.transition = 'none';
+    setTimeout(() => {
+      kpi.style.transition = 'opacity .45s ease, transform .45s cubic-bezier(.34,1.4,.64,1)';
+      kpi.style.opacity = '1';
+      kpi.style.transform = 'translateY(0)';
+      // Start number counter after the pop
+      setTimeout(() => {
+        const val = kpi.querySelector('[data-count]');
+        if (val) animateCounter(val);
+      }, 180);
+    }, i * 90);
+  });
+}
+
+// Dismiss splash and trigger entry animations
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const splash = document.getElementById('splash');
+    splash.classList.add('fade-out');
+    setTimeout(() => splash.remove(), 700);
+    animateKPIs();
+    // Stagger the first active panel's cards
+    const firstPanel = document.querySelector('.panel.active');
+    if (firstPanel) staggerCards(firstPanel);
+  }, 1450);
+});
+
+// ===== LABOR TAB CHARTS =====
+
+// Monthly labor cost — 2025 (all 12 mo) and 2026 (Jan–Apr)
+const labor25 = [93830, 96220, 89809, 81334, 126281, 86693, 80609, 88056, 109749, 130720, 82078, 76998];
+const labor26 = [95700, 106889, 95639, 92170];
+
+new Chart(document.getElementById('laborMonthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: months12,
+    datasets: [
+      {
+        label: '2025 Monthly Labor',
+        data: labor25,
+        backgroundColor: 'rgba(49,130,206,0.72)',
+        borderRadius: 4,
+        order: 2
+      },
+      {
+        label: '2026 Monthly Labor (Jan–Apr)',
+        data: [...labor26, ...Array(8).fill(null)],
+        backgroundColor: 'rgba(237,100,52,0.82)',
+        borderRadius: 4,
+        order: 1
+      },
+      {
+        label: '2025 Avg (~$95K/mo)',
+        data: Array(12).fill(Math.round(labor25.reduce((a,b)=>a+b,0)/12)),
+        type: 'line',
+        borderColor: 'rgba(49,130,206,0.45)',
+        borderDash: [6,4],
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+        order: 0
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        mode: 'index',
+        callbacks: {
+          label: c => c.raw != null ? c.dataset.label + ': $' + Math.round(c.raw).toLocaleString() : null
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        beginAtZero: true,
+        ticks: { callback: v => '$' + Math.round(v/1000) + 'K' },
+        title: { display: true, text: 'Labor Cost ($)' }
+      }
+    }
+  }
+});
+
+// Labor efficiency: cost per encounter, monthly
+// 2025 monthly encounters
+const enc25mo = [430, 561, 606, 541, 513, 427, 472, 499, 415, 552, 632, 633];
+// 2026 monthly encounters (Jan–Apr)
+const enc26mo = [1197, 1270, 1320, 867];
+
+const cpe25 = labor25.map((l, i) => Math.round(l / enc25mo[i]));
+const cpe26 = labor26.map((l, i) => Math.round(l / enc26mo[i]));
+
+new Chart(document.getElementById('laborEfficiencyChart'), {
+  type: 'line',
+  data: {
+    labels: months12,
+    datasets: [
+      {
+        label: '2025 Cost/Encounter',
+        data: cpe25,
+        borderColor: 'rgba(49,130,206,0.9)',
+        backgroundColor: 'rgba(49,130,206,0.08)',
+        fill: true,
+        tension: 0.38,
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      },
+      {
+        label: '2026 Cost/Encounter (Jan–Apr)',
+        data: [...cpe26, ...Array(8).fill(null)],
+        borderColor: 'rgba(56,161,105,0.9)',
+        backgroundColor: 'rgba(56,161,105,0.08)',
+        fill: false,
+        tension: 0.38,
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderDash: []
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        callbacks: { label: c => c.raw != null ? c.dataset.label + ': $' + c.raw + '/enc' : null }
+      }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        beginAtZero: false,
+        ticks: { callback: v => '$' + v },
+        title: { display: true, text: 'Cost Per Encounter ($)' }
+      }
+    }
+  }
+});
+
+// Labor category breakdown: grouped bar (2025 vs 2026 annualized)
+new Chart(document.getElementById('laborCategoryChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Staff Salaries', 'Provider Salaries', 'Payroll Taxes', 'Benefits', 'Other / New'],
+    datasets: [
+      {
+        label: '2025 Full Year',
+        data: [628973, 437700, 48959, 16309, 10436],
+        backgroundColor: 'rgba(49,130,206,0.78)',
+        borderRadius: 4
+      },
+      {
+        label: '2026 Annualized',
+        data: [1009416, 0, 93429, 23205, 45195],
+        backgroundColor: 'rgba(237,100,52,0.78)',
+        borderRadius: 4
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: true,
+    plugins: {
+      legend: { position: 'top' },
+      tooltip: {
+        callbacks: {
+          label: c => c.dataset.label + ': $' + Math.round(c.raw).toLocaleString()
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: {
+        beginAtZero: true,
+        ticks: { callback: v => '$' + Math.round(v/1000) + 'K' },
+        title: { display: true, text: 'Annual Amount ($)' }
+      }
+    }
+  }
+});
+
+// Subtle parallax tilt on KPI cards (mouse move)
+document.querySelectorAll('.kpi').forEach(kpi => {
+  kpi.addEventListener('mousemove', e => {
+    const rect = kpi.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / rect.width;
+    const dy = (e.clientY - cy) / rect.height;
+    kpi.style.transform = `translateY(-2px) rotateX(${-dy * 6}deg) rotateY(${dx * 6}deg)`;
+    kpi.style.transition = 'transform .05s ease';
+  });
+  kpi.addEventListener('mouseleave', () => {
+    kpi.style.transform = '';
+    kpi.style.transition = 'box-shadow .22s ease, transform .3s ease';
+  });
+});
+</script>
+</body>
+</html>
